@@ -17,10 +17,12 @@ export const CARDS: Card[] = [
   { id: 'messi', name: 'LIONEL MESSI', power: 14, value: 1, suit: 'espada', cardNumber: 1, country: 'Argentina', isLegendary: true, image: '/figu-de-messi.png' },
   { id: 'cr7', name: 'C. Ronaldo', power: 13, value: 2, env: 7, suit: 'basto', cardNumber: 1, country: 'Portugal', isLegendary: true, image: '/figu-de-cristiano.png' },
   { id: 'mbappe', name: 'K. Mbappé', power: 12, value: 3, env: 10, suit: 'espada', cardNumber: 7, country: 'France', isLegendary: true, image: '/figu-de-mbappe.png' },
-  { id: 'neymar', name: 'Neymar Jr', power: 11, value: 7, suit: 'oro', cardNumber: 7, country: 'Brazil', isLegendary: true, image: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=200&h=300&auto=format&fit=crop' },
+  { id: 'neymar', name: 'Neymar Jr', power: 11, value: 7, env: 10, suit: 'oro', cardNumber: 10, country: 'Brazil', isLegendary: true, image: '/figu-de-neymar.png' },
+  { id: 'haaland', name: 'E. Haaland', power: 10, value: 7, env: 9, suit: 'figurita', cardNumber: 9, country: 'Norway', isLegendary: true, image: '/figu-de-haaland.png' },
+  { id: 'yamal', name: 'L. Yamal', power: 9, value: 7, env: 19, suit: 'figurita', cardNumber: 19, country: 'Spain', isLegendary: true, image: '/figu-de-yamal.png' },
   
-  // 3s
-  { id: 'modric', name: 'L. Modrić', power: 10, value: 3, suit: 'figurita', cardNumber: 3, country: 'Croatia', image: '' },
+  // High Power Cards continued
+  { id: 'modric', name: 'L. Modrić', power: 8, value: 3, suit: 'figurita', cardNumber: 3, country: 'Croatia', image: '' },
   { id: 'debruyne', name: 'K. De Bruyne', power: 10, value: 3, suit: 'figurita', cardNumber: 3, country: 'Belgium', image: '' },
   
   // 2s

@@ -77,8 +77,8 @@
 
 @media (max-width: 480px) {
   .sticker {
-    width: 130px;
-    height: 165px;
+    width: 105px;
+    height: 135px;
   }
 }
 
@@ -161,6 +161,20 @@ body {
 .scoreboard-value {
   font-size: 2.5rem;
   line-height: 1;
+}
+
+@media (max-width: 480px) {
+  .scoreboard {
+    padding: 0.5rem 1rem;
+    gap: 1rem;
+    border-width: 2px;
+  }
+  .scoreboard-value {
+    font-size: 1.8rem;
+  }
+  .scoreboard-label {
+    font-size: 0.6rem;
+  }
 }
 
 /* Urban Button */

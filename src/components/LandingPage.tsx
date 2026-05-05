@@ -20,9 +20,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
       justifyContent: 'center',
       padding: '2rem',
       textAlign: 'center',
-      backgroundImage: 'linear-gradient(rgba(10, 10, 12, 0.7), rgba(10, 10, 12, 0.7)), url(/background.png)',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
       position: 'relative',
       overflow: 'hidden'
     }}>
