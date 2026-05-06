@@ -17,7 +17,8 @@ export const Sticker: React.FC<StickerProps> = ({ card, onClick, disabled }) => 
       style={{
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.6 : 1,
-        borderColor: card.isLegendary ? 'var(--color-accent)' : '#fff'
+        borderColor: card.id === 'messi' ? '#a855f7' : '#fff',
+        boxShadow: card.id === 'messi' ? '0 0 25px rgba(168, 85, 247, 0.9)' : undefined
       }}
     >
       <div className="sticker-glitter"></div>
@@ -63,7 +64,7 @@ export const Sticker: React.FC<StickerProps> = ({ card, onClick, disabled }) => 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
           <div style={{ fontSize: '0.8rem' }}>
             <span style={{ color: 'rgba(255,255,255,0.7)' }}>VAL</span>
-            <div className="text-display" style={{ color: 'var(--color-secondary)', fontSize: '1.2rem' }}>{card.power}</div>
+            <div className="text-display" style={{ color: 'var(--color-accent)', fontSize: '1.2rem' }}>{card.power}</div>
           </div>
           <div style={{ fontSize: '0.8rem' }}>
             <span style={{ color: 'rgba(255,255,255,0.7)' }}>ENV</span>

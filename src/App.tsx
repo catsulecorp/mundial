@@ -243,7 +243,14 @@ function App() {
 
   const handleCpuMazo = () => {
     triggerCall('¡ME VOY AL MAZO!', 'var(--color-secondary)');
-    const points = trucoState.status === 'accepted' ? trucoState.level + 1 : 1;
+    let points = 1;
+    if (trucoState.status === 'accepted') {
+      points = trucoState.level + 1;
+    } else {
+      // Rule: 2 points if 1st player of 1st hand surrenders, 1 if 2nd.
+      if (playedCards.length === 0) points = 2;
+      else points = 1;
+    }
     setTimeout(() => {
       setScore(prev => ({ ...prev, player: prev.player + points }));
       triggerCall('¡GANASTE!', '#ffea00');
@@ -303,6 +310,7 @@ function App() {
     };
 
     triggerCall(texts[type][level - 1], colors[type]);
+    setPendingAction({ type, level, caller });
 
     if (caller === 'player') {
       // Simulate CPU response after 1.5s
@@ -352,9 +360,8 @@ function App() {
             setEnvidoState(prev => ({ ...prev, status: 'finished' }));
           }
         }
+        setPendingAction(null);
       }, 1500);
-    } else {
-      setPendingAction({ type, level, caller });
     }
   };
 
@@ -431,7 +438,14 @@ function App() {
     triggerCall('¡AL MAZO!', '#ffffff');
 
     // 2. Show Loss & Update Score (after 1s)
-    const points = trucoState.status === 'accepted' ? trucoState.level + 1 : 1;
+    let points = 1;
+    if (trucoState.status === 'accepted') {
+      points = trucoState.level + 1;
+    } else {
+      // Rule: 2 points if 1st player of 1st hand surrenders, 1 if 2nd.
+      if (playedCards.length === 0) points = 2;
+      else points = 1;
+    }
     timersRef.current.push(setTimeout(() => {
       setScore(prev => ({ ...prev, cpu: prev.cpu + points }));
       triggerCall('¡CPU GANA!', 'var(--color-secondary)');
@@ -487,9 +501,6 @@ function App() {
 
   return (
     <div className="app" style={{ 
-      backgroundImage: 'linear-gradient(rgba(10, 10, 12, 0.75), rgba(10, 10, 12, 0.75)), url(/background.png)',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
       minHeight: '100vh',
       position: 'relative'
     }}>
@@ -672,7 +683,7 @@ function App() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
                 <AnimatePresence mode="wait">
-                  {pendingAction ? (
+                  {pendingAction && pendingAction.caller === 'cpu' ? (
                     <motion.div 
                       key="responses"
                       initial={{ opacity: 0, y: 10 }}
