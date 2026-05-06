@@ -25,6 +25,28 @@ function App() {
   const [envidoState, setEnvidoState] = useState({ level: 0, caller: null as 'player' | 'cpu' | null, status: 'none' as 'none' | 'pending' | 'accepted' | 'finished' });
   const [pendingAction, setPendingAction] = useState<{ type: 'truco' | 'envido'; level: number; caller: 'player' | 'cpu' } | null>(null);
   const [handWinners, setHandWinners] = useState<('player' | 'cpu' | 'draw')[]>([]);
+  const [scorePopups, setScorePopups] = useState<{ id: number; value: number; owner: 'player' | 'cpu' }[]>([]);
+  const [cpuHandCount, setCpuHandCount] = useState(0);
+  const [roundWinningCardId, setRoundWinningCardId] = useState<string | null>(null);
+  const prevScoreRef = useRef(score);
+
+  useEffect(() => {
+    const diffPlayer = score.player - prevScoreRef.current.player;
+    const diffCpu = score.cpu - prevScoreRef.current.cpu;
+
+    if (diffPlayer > 0) {
+      const id = Date.now();
+      setScorePopups(prev => [...prev, { id, value: diffPlayer, owner: 'player' }]);
+      setTimeout(() => setScorePopups(prev => prev.filter(p => p.id !== id)), 1500);
+    }
+    if (diffCpu > 0) {
+      const id = Date.now() + 1;
+      setScorePopups(prev => [...prev, { id, value: diffCpu, owner: 'cpu' }]);
+      setTimeout(() => setScorePopups(prev => prev.filter(p => p.id !== id)), 1500);
+    }
+
+    prevScoreRef.current = score;
+  }, [score]);
 
   const isBusy = isCpuThinking || isRoundEnding || isCooldown || (pendingAction !== null && pendingAction.caller === 'cpu');
 
@@ -49,6 +71,8 @@ function App() {
     setPlayedCards([]);
     setPlayerHand(CARDS.slice(0, 3));
     cpuHandRef.current = CARDS.slice(3, 6);
+    setCpuHandCount(3);
+    setRoundWinningCardId(null);
   };
 
   const timersRef = useRef<any[]>([]);
@@ -60,14 +84,14 @@ function App() {
       const lastTwo = playedCards.slice(-2);
       const playerCard = lastTwo.find(c => c.owner === 'player');
       const cpuCard = lastTwo.find(c => c.owner === 'cpu');
-      
+
       if (playerCard && cpuCard && handWinners.length < playedCards.length / 2) {
         let winner: 'player' | 'cpu' | 'draw';
         // LOWER power wins (VAL 1 > VAL 7)
         if (playerCard.power < cpuCard.power) winner = 'player';
         else if (cpuCard.power < playerCard.power) winner = 'cpu';
         else winner = 'draw';
-        
+
         setHandWinners(prev => [...prev, winner]);
       }
     }
@@ -75,11 +99,11 @@ function App() {
     // 2. Check for Round Winner (Best of 3)
     if (!isRoundEnding && handWinners.length >= 2) {
       let roundWinner: 'player' | 'cpu' | null = null;
-      
+
       const pWins = handWinners.filter(w => w === 'player').length;
       const cWins = handWinners.filter(w => w === 'cpu').length;
       const draws = handWinners.filter(w => w === 'draw').length;
-      
+
       // Traditional Best of 3 Logic
       if (pWins >= 2) {
         roundWinner = 'player';
@@ -120,13 +144,18 @@ function App() {
       if (roundWinner) {
         setIsRoundEnding(true);
         interactionLockRef.current = true;
-        
+
         const winner = roundWinner;
         
+        // Find the hero card (the winner's card in the last hand)
+        const lastTwo = playedCards.slice(-2);
+        const hero = lastTwo.find(c => c.owner === winner);
+        if (hero) setRoundWinningCardId(hero.instanceId);
+
         // 1. Show Winner
         timersRef.current.push(setTimeout(() => {
           const points = trucoState.status === 'accepted' ? trucoState.level + 1 : 1;
-          
+
           if (winner === 'player') {
             setScore(prev => ({ ...prev, player: prev.player + points }));
             triggerCall('¡GANASTE!', '#ffea00');
@@ -156,8 +185,9 @@ function App() {
     setIsCooldown(false);
     setActiveCall(null);
     setScore({ player: 0, cpu: 0 });
-    setPlayerHand(CARDS.slice(0, 3)); 
+    setPlayerHand(CARDS.slice(0, 3));
     cpuHandRef.current = CARDS.slice(3, 6);
+    setCpuHandCount(3);
   };
 
   const triggerCall = (text: string, color: string = 'var(--color-primary)') => {
@@ -173,9 +203,9 @@ function App() {
     const isOdd = playedCards.length % 2 !== 0;
     const isBoardNotFull = playedCards.length < 6;
     const lastCardWasPlayer = playedCards.length > 0 && playedCards[playedCards.length - 1].owner === 'player';
-    
+
     // CPU leads if even number of cards and it won (or drew) last hand
-    const cpuShouldLead = 
+    const cpuShouldLead =
       (playedCards.length === 2 && handWinners[0] === 'cpu') ||
       (playedCards.length === 4 && handWinners[1] === 'cpu') ||
       (playedCards.length === 2 && handWinners[0] === 'draw') ||
@@ -183,7 +213,7 @@ function App() {
 
     if (((isOdd && lastCardWasPlayer) || cpuShouldLead) && isBoardNotFull && !isRoundEnding) {
       setIsCpuThinking(true);
-      
+
       const playId = Date.now();
       const isMobile = window.innerWidth < 768;
       const cardIndex = Math.floor(playedCards.length / 2);
@@ -192,11 +222,11 @@ function App() {
       const yOffset = isMobile ? 60 : 100;
 
       if (cpuMoveTimeoutRef.current) clearTimeout(cpuMoveTimeoutRef.current);
-      
+
       cpuMoveTimeoutRef.current = setTimeout(() => {
         // CPU DECISION PHASE
         const dice = Math.random();
-        
+
         // 1. Check for Mazo (5% chance)
         if (dice < 0.05) {
           handleCpuMazo();
@@ -216,7 +246,7 @@ function App() {
         }
 
         let cardToPlay: Card | null = null;
-        
+
         if (cpuHandRef.current.length > 0) {
           cardToPlay = cpuHandRef.current[0];
           cpuHandRef.current = cpuHandRef.current.slice(1);
@@ -233,8 +263,9 @@ function App() {
             instanceId: `c-${cardObj.id}-${playId}`
           };
           setPlayedCards(prev => [...prev, cpuCardEntry]);
+          setCpuHandCount(prev => Math.max(0, prev - 1));
         }
-        
+
         setIsCpuThinking(false);
         cpuMoveTimeoutRef.current = null;
       }, 1000);
@@ -260,18 +291,18 @@ function App() {
 
   const playCard = (card: Card) => {
     if (isBusy || !playerHand.some(c => c.id === card.id) || playedCards.length >= 6) return;
-    
+
     startCooldown();
 
     const playId = Date.now();
     const isMobile = window.innerWidth < 768;
-    const cardIndex = Math.floor(playedCards.length / 2); 
+    const cardIndex = Math.floor(playedCards.length / 2);
     const spacing = isMobile ? 95 : 200;
     const xPos = (cardIndex - 1) * spacing;
     const yOffset = isMobile ? 60 : 100;
 
     setPlayerHand(prev => prev.filter(c => c.id !== card.id));
-    
+
     const playerCardEntry = {
       ...card,
       rotation: (Math.random() - 0.5) * 5,
@@ -280,7 +311,7 @@ function App() {
       owner: 'player' as const,
       instanceId: `p-${card.id}-${playId}`
     };
-    
+
     setPlayedCards(prev => [...prev, playerCardEntry]);
 
     // Failsafe: unlock after 5s no matter what
@@ -350,7 +381,7 @@ function App() {
             setIsRoundEnding(true);
             setScore(prev => ({ ...prev, player: prev.player + (level === 1 ? 1 : level - 1) }));
             triggerCall('¡GANASTE!', '#ffea00');
-            
+
             timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 3...', '#ffffff'), 1500));
             timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 2...', '#ffffff'), 2500));
             timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 1...', '#ffffff'), 3500));
@@ -402,7 +433,7 @@ function App() {
         setIsRoundEnding(true);
         setScore(prev => ({ ...prev, cpu: prev.cpu + (pendingAction.level === 1 ? 1 : pendingAction.level - 1) }));
         triggerCall('¡CPU GANA!', 'var(--color-secondary)');
-        
+
         timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 3...', '#ffffff'), 1500));
         timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 2...', '#ffffff'), 2500));
         timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 1...', '#ffffff'), 3500));
@@ -412,10 +443,10 @@ function App() {
         setEnvidoState(prev => ({ ...prev, status: 'finished' }));
       }
     }
-    
+
     const wasCpuTurn = pendingAction.caller === 'cpu';
     setPendingAction(null);
-    
+
     // If it was CPU's turn and they just called, they still need to play their card
     if (wasCpuTurn && wants) {
       setIsCpuThinking(false); // This will re-trigger the useEffect to play the card
@@ -424,11 +455,11 @@ function App() {
 
   const handleMazo = () => {
     if (isBusy) return;
-    
+
     startCooldown();
     setIsRoundEnding(true);
     interactionLockRef.current = true;
-    
+
     // Clear ALL timers when retiring
     if (cpuMoveTimeoutRef.current) clearTimeout(cpuMoveTimeoutRef.current);
     timersRef.current.forEach(clearTimeout);
@@ -455,7 +486,7 @@ function App() {
     timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 3...', '#ffffff'), 2000));
     timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 2...', '#ffffff'), 3000));
     timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 1...', '#ffffff'), 4000));
-    
+
     // 4. Reset board (after 5s)
     timersRef.current.push(setTimeout(() => {
       resetRound();
@@ -472,7 +503,7 @@ function App() {
       cpuMoveTimeoutRef.current = null;
     }
     setIsCpuThinking(false);
-    
+
     setPlayedCards(currentPlayed => {
       if (currentPlayed.length === 0) {
         interactionLockRef.current = false;
@@ -500,7 +531,7 @@ function App() {
   };
 
   return (
-    <div className="app" style={{ 
+    <div className="app" style={{
       backgroundImage: `linear-gradient(rgba(10, 10, 12, 0.75), rgba(10, 10, 12, 0.75)), url(${gameState === 'landing' ? '/background.png' : '/playground.png'})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
@@ -525,8 +556,8 @@ function App() {
               textAlign: 'center'
             }}
           >
-            <div className="text-display" style={{ 
-              fontSize: 'clamp(3rem, 15vw, 8rem)', 
+            <div className="text-display" style={{
+              fontSize: 'clamp(3rem, 15vw, 8rem)',
               color: activeCall.color,
               textShadow: `0 0 40px ${activeCall.color}88, 6px 6px 0px #000`,
               WebkitTextStroke: '3px #000',
@@ -542,17 +573,17 @@ function App() {
         {gameState === 'landing' ? (
           <LandingPage key="landing" onStart={startGame} />
         ) : (
-          <motion.div 
+          <motion.div
             key="game"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            style={{ 
-              minHeight: '100vh', 
-              padding: '1rem', 
+            style={{
+              minHeight: '100vh',
+              padding: '1rem',
               paddingBottom: '120px', // Extra space for cards
-              display: 'flex', 
-              flexDirection: 'column', 
+              display: 'flex',
+              flexDirection: 'column',
               gap: '1rem',
               overflowX: 'hidden',
               overflowY: 'auto',
@@ -561,27 +592,74 @@ function App() {
           >
 
             {/* Main Board Container - Centralized */}
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
               justifyContent: 'center',
               gap: '0.5rem',
               width: '100%'
             }}>
+              {/* CPU Hand Visualization */}
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                marginBottom: '10px',
+                height: '60px'
+              }}>
+                <AnimatePresence>
+                  {[...Array(cpuHandCount)].map((_, i) => (
+                    <motion.div
+                      key={`cpu-card-${i}`}
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      className="cpu-card-back"
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+
               {/* Integrated Info Section - Now Top */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1rem' }}>
-                <Scoreboard 
-                  scoreA={score.player} 
-                  scoreB={score.cpu} 
-                  labelA="VOS" 
-                  labelB="CPU" 
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1rem', position: 'relative' }}>
+                <Scoreboard
+                  scoreA={score.player}
+                  scoreB={score.cpu}
+                  labelA="VOS"
+                  labelB="CPU"
                 />
-                <h2 
-                  className="text-display" 
+
+                {/* Score Popups */}
+                <AnimatePresence>
+                  {scorePopups.map(popup => (
+                    <motion.div
+                      key={popup.id}
+                      initial={{ opacity: 0, y: 0, x: popup.owner === 'player' ? -90 : 70 }}
+                      animate={{ opacity: 1, y: -40 }}
+                      exit={{ opacity: 0, y: -80 }}
+                      transition={{ duration: 0.5 }}
+                      style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '50%',
+                        color: 'var(--color-accent)',
+                        fontSize: '2rem',
+                        fontWeight: '900',
+                        textShadow: '0 0 15px rgba(0,0,0,0.8)',
+                        zIndex: 100,
+                        pointerEvents: 'none'
+                      }}
+                    >
+                      +{popup.value}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                <h2
+                  className="text-display"
                   onClick={() => setGameState('landing')}
-                  style={{ 
-                    fontSize: 'clamp(0.9rem, 4vw, 1.5rem)', 
+                  style={{
+                    fontSize: 'clamp(0.9rem, 4vw, 1.5rem)',
                     opacity: 0.8,
                     letterSpacing: '0.2em',
                     marginTop: '0.25rem',
@@ -596,80 +674,128 @@ function App() {
               </div>
 
               {/* The Field */}
-              <div 
+              <div
                 onClick={collectCards}
-                style={{ 
+                style={{
                   width: '100%',
                   maxWidth: '800px',
                   aspectRatio: '16/10',
-                  background: 'rgba(255,255,255,0.03)', 
-                  border: '2px dashed rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '2px dashed rgba(255,255,255,0.2)',
                   borderRadius: '24px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   position: 'relative',
-                  boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
+                  boxShadow: 'inset 0 0 60px rgba(0,0,0,0.6)',
                   perspective: '1200px',
                   cursor: isBusy || playedCards.length === 0 ? 'default' : 'pointer'
                 }}
               >
                 <AnimatePresence>
-                  {playedCards.map((card, index) => (
-                    <motion.div
-                      key={card.instanceId}
-                      initial={{ 
-                        y: card.owner === 'player' ? 400 : -400, 
-                        opacity: 0, 
-                        rotateX: 0, 
-                        rotateY: card.owner === 'cpu' ? 180 : 0, // Cards could come face down? 
-                        scale: 1.2 
-                      }}
-                      animate={{ 
-                        y: card.y, 
-                        x: card.x,
-                        opacity: 1, 
-                        rotateX: 30, 
-                        rotateY: 0,
-                        rotateZ: card.rotation,
-                        scale: 0.85
-                      }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 80, 
-                        damping: 15,
-                        mass: 1
-                      }}
-                      style={{
-                        position: 'absolute',
-                        zIndex: index + 1,
-                        transformStyle: 'preserve-3d',
-                        filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))'
-                      }}
-                    >
-                      <Sticker card={card} disabled />
-                      {/* Label for owner */}
-                      <div style={{
-                        position: 'absolute',
-                        [card.owner === 'player' ? 'top' : 'bottom']: '-25px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        fontSize: '0.7rem',
-                        fontWeight: '900',
-                        color: card.owner === 'player' ? 'var(--color-primary)' : 'var(--color-secondary)',
-                        textShadow: '0 2px 10px rgba(0,0,0,1)',
-                        pointerEvents: 'none',
-                        letterSpacing: '0.2em',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {card.owner === 'player' ? 'TUYA' : 'CPU'}
-                      </div>
-                    </motion.div>
-                  ))}
+                  {/* Card Silhouettes (Placeholders) */}
+                  {[0, 1, 2].map(col => [0, 1].map(row => {
+                    const isMobile = window.innerWidth < 768;
+                    const spacing = isMobile ? 95 : 200;
+                    const xPos = (col - 1) * spacing;
+                    const yOffset = isMobile ? 60 : 100;
+                    const yPos = row === 0 ? -yOffset : yOffset;
+
+                    return (
+                      <div
+                        key={`sil-${col}-${row}`}
+                        className="card-silhouette"
+                        style={{
+                          transform: `translate(${xPos}px, ${yPos}px) rotateX(30deg) scale(0.85)`,
+                          position: 'absolute'
+                        }}
+                      />
+                    );
+                  }))}
+
+                  {playedCards.map((card, index) => {
+                    const handIndex = Math.floor(index / 2);
+                    const isHandDecided = handWinners.length > handIndex;
+                    const handWinner = handWinners[handIndex];
+
+                    let isLoser = false;
+                    let isWinner = false;
+                    if (isHandDecided && handWinner !== 'draw') {
+                      isLoser = card.owner !== handWinner;
+                      isWinner = card.owner === handWinner;
+                    }
+
+                    const isHero = card.instanceId === roundWinningCardId;
+
+                    return (
+                      <motion.div
+                        key={card.instanceId}
+                        initial={{
+                          y: card.owner === 'player' ? 400 : -400,
+                          opacity: 0,
+                          rotateX: 0,
+                          rotateY: card.owner === 'cpu' ? 180 : 0,
+                          scale: 1.2
+                        }}
+                        animate={{
+                          y: isHero ? card.y - 60 : card.y,
+                          x: card.x,
+                          opacity: isLoser ? 0.65 : 1,
+                          rotateX: isHero ? 20 : 30,
+                          rotateY: 0,
+                          rotateZ: card.rotation,
+                          scale: isHero ? 1.15 : (isWinner ? 0.9 : 0.85),
+                          filter: isHero
+                            ? 'brightness(1.4) contrast(1.2) drop-shadow(0 0 50px rgba(255, 234, 0, 0.7))'
+                            : (isWinner 
+                                ? 'brightness(1.2) contrast(1.1) drop-shadow(0 0 20px rgba(255,255,255,0.4))' 
+                                : isLoser 
+                                  ? 'brightness(0.8) grayscale(0.3)' 
+                                  : 'brightness(1) grayscale(0)')
+                        }}
+                        transition={isHero ? {
+                          type: "spring",
+                          stiffness: 100,
+                          damping: 12,
+                          mass: 1
+                        } : {
+                          type: "spring",
+                          stiffness: 80,
+                          damping: 15,
+                          mass: 1
+                        }}
+                        style={{
+                          position: 'absolute',
+                          zIndex: isHero ? 100 : (isWinner ? 10 : index + 1),
+                          transformStyle: 'preserve-3d',
+                          filter: isLoser ? 'none' : 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))'
+                        }}
+                      >
+                        <Sticker card={card} disabled />
+                        {/* Label for owner */}
+                        <div style={{
+                          position: 'absolute',
+                          [card.owner === 'player' ? 'top' : 'bottom']: '-25px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          fontSize: '0.7rem',
+                          fontWeight: '900',
+                          color: card.owner === 'player' ? 'var(--color-primary)' : 'var(--color-secondary)',
+                          textShadow: '0 2px 10px rgba(0,0,0,1)',
+                          opacity: isLoser ? 0.5 : 1,
+                          pointerEvents: 'none',
+                          letterSpacing: '0.2em',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {card.owner === 'player' ? 'TUYA' : 'CPU'}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
 
                 {playedCards.length === 0 && (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', letterSpacing: '0.1em' }}>ÁREA DE JUEGO</p>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', letterSpacing: '0.1em' }}>CAMPO DE JUEGO</p>
                 )}
               </div>
             </div>
@@ -677,20 +803,20 @@ function App() {
 
 
             {/* Actions / Hand - Bottom Fixed */}
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '0.75rem', 
-              alignItems: 'center', 
-              marginBottom: '0.5rem', 
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              alignItems: 'center',
+              marginBottom: '0.5rem',
               width: '100%',
-              marginTop: '0.5rem' 
+              marginTop: '0.5rem'
             }}>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
                 <AnimatePresence mode="wait">
                   {pendingAction && pendingAction.caller === 'cpu' ? (
-                    <motion.div 
+                    <motion.div
                       key="responses"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -699,13 +825,13 @@ function App() {
                     >
                       <Button variant="secondary" onClick={() => handleResponse(true)}>QUIERO</Button>
                       <Button variant="white" onClick={() => handleResponse(false)}>NO QUIERO</Button>
-                      
+
                       {pendingAction.type === 'truco' && pendingAction.level < 3 && (
                         <Button variant="secondary" onClick={() => handleCall('truco', pendingAction.level + 1, 'player')}>
                           {pendingAction.level === 1 ? 'RE-TRUCO' : 'VALE 4'}
                         </Button>
                       )}
-                      
+
                       {pendingAction.type === 'truco' && envidoState.status === 'none' && playedCards.length === 1 && (
                         <Button variant="primary" onClick={() => {
                           triggerCall('EL ENVIDO ESTÁ PRIMERO!', '#fff');
@@ -719,68 +845,78 @@ function App() {
                         </Button>
                       )}
 
-                      <Button variant="white" onClick={handleMazo}>MAZO</Button>
                     </motion.div>
                   ) : (
-                    <motion.div 
+                    <motion.div
                       key="actions"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}
                     >
-                      <Button 
-                        variant="secondary" 
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
+                      <Button
+                        variant="secondary"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
                         disabled={isBusy || (trucoState.status !== 'none' && trucoState.caller === 'player') || trucoState.level >= 3}
                         onClick={() => handleCall('truco', trucoState.level + 1, 'player')}
                       >
                         {trucoState.level === 0 ? 'TRUCO!' : trucoState.level === 1 ? 'RE-TRUCO!' : 'VALE 4!'}
                       </Button>
-                      
+
                       {/* Envido only in first hand (playedCards.length 0 or 1) and before Truco */}
-                      <Button 
-                        variant="primary" 
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
+                      <Button
+                        variant="primary"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
                         disabled={isBusy || envidoState.status !== 'none' || trucoState.status !== 'none' || playedCards.length > 1}
                         onClick={() => handleCall('envido', 1, 'player')}
                       >ENVIDO</Button>
-                      
-                      <Button 
-                        variant="white" 
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
-                        disabled={isBusy}
-                        onClick={handleMazo}
-                      >MAZO</Button>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                gap: '0.75rem', 
-                overflowX: 'auto', 
+
+              <div style={{
+                display: 'flex',
+                gap: '0.75rem',
+                overflowX: 'auto',
                 padding: '0.5rem',
                 width: '100%',
                 justifyContent: 'center'
               }}>
                 <AnimatePresence>
-                  {playerHand.map((card) => (
+                  {playerHand.map((card, idx) => (
                     <motion.div
                       key={card.id}
                       layout
+                      animate={{ y: [0, -8, 0] }}
+                      transition={{ 
+                        y: { 
+                          duration: 3 + idx * 0.5, 
+                          repeat: Infinity, 
+                          ease: "easeInOut" 
+                        },
+                        default: { duration: 0.3 }
+                      }}
                       exit={{ y: -100, opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.3 }}
                     >
-                      <Sticker 
-                        card={card} 
-                        onClick={() => playCard(card)} 
+                      <Sticker
+                        card={card}
+                        onClick={() => playCard(card)}
                         disabled={isBusy}
                       />
                     </motion.div>
                   ))}
                 </AnimatePresence>
+              </div>
+
+              {/* Al Mazo Button Always Below */}
+              <div style={{ marginTop: '0.5rem' }}>
+                <Button
+                  variant="white"
+                  style={{ padding: '0.5rem 2rem', fontSize: '1rem', width: '100%', maxWidth: '200px' }}
+                  disabled={isBusy}
+                  onClick={handleMazo}
+                >AL MAZO</Button>
               </div>
             </div>
 

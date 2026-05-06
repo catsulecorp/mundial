@@ -12,14 +12,14 @@ export const Scoreboard: React.FC<ScoreboardProps> = ({ scoreA, scoreB, labelA, 
     <div className="scoreboard">
       <div className="scoreboard-item">
         <div className="scoreboard-label">{labelA}</div>
-        <div className="scoreboard-value text-digital">{scoreA.toString().padStart(2, '0')}</div>
+        <div className="scoreboard-value text-digital" style={{ color: 'var(--color-accent)' }}>{scoreA.toString().padStart(2, '0')}</div>
       </div>
       
-      <div className="text-digital" style={{ fontSize: '2rem', opacity: 0.5 }}>:</div>
+      <div className="text-digital" style={{ fontSize: '2.5rem', color: 'var(--color-accent)', opacity: 0.5 }}>:</div>
       
       <div className="scoreboard-item">
         <div className="scoreboard-label">{labelB}</div>
-        <div className="scoreboard-value text-digital">{scoreB.toString().padStart(2, '0')}</div>
+        <div className="scoreboard-value text-digital" style={{ color: 'var(--color-accent)' }}>{scoreB.toString().padStart(2, '0')}</div>
       </div>
     </div>
   );

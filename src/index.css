@@ -178,8 +178,35 @@ body {
 }
 
 .scoreboard-value {
-  font-size: 2.5rem;
+  font-size: 3rem;
   line-height: 1;
+}
+
+.cpu-card-back {
+  width: 45px;
+  height: 60px;
+  background-image: url('/card.png');
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.card-silhouette {
+  width: 140px;
+  height: 190px;
+  border: 2px dashed rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .cpu-card-back {
+    width: 35px;
+    height: 48px;
+  }
 }
 
 @media (max-width: 480px) {
