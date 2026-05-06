@@ -501,6 +501,10 @@ function App() {
 
   return (
     <div className="app" style={{ 
+      backgroundImage: `linear-gradient(rgba(10, 10, 12, 0.75), rgba(10, 10, 12, 0.75)), url(${gameState === 'landing' ? '/background.png' : '/playground.png'})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
       minHeight: '100vh',
       position: 'relative'
     }}>
@@ -545,12 +549,14 @@ function App() {
             exit={{ opacity: 0 }}
             style={{ 
               minHeight: '100vh', 
-              padding: '0.5rem', 
+              padding: '1rem', 
+              paddingBottom: '120px', // Extra space for cards
               display: 'flex', 
               flexDirection: 'column', 
-              gap: '0.5rem',
+              gap: '1rem',
               overflowX: 'hidden',
-              justifyContent: 'center'
+              overflowY: 'auto',
+              justifyContent: 'flex-start'
             }}
           >
 
