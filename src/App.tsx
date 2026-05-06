@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { Scoreboard } from './components/Scoreboard';
+import { RankingSidebar } from './components/RankingSidebar';
 import { Sticker } from './components/Sticker';
 import { CARDS } from './data/cards';
 import type { Card } from './data/cards';
@@ -146,7 +147,7 @@ function App() {
         interactionLockRef.current = true;
 
         const winner = roundWinner;
-        
+
         // Find the hero card (the winner's card in the last hand)
         const lastTwo = playedCards.slice(-2);
         const hero = lastTwo.find(c => c.owner === winner);
@@ -581,24 +582,52 @@ function App() {
             style={{
               minHeight: '100vh',
               padding: '1rem',
-              paddingBottom: '120px', // Extra space for cards
+              paddingBottom: '120px',
               display: 'flex',
               flexDirection: 'column',
+              alignItems: 'center',
               gap: '1rem',
               overflowX: 'hidden',
               overflowY: 'auto',
-              justifyContent: 'flex-start'
             }}
           >
+
+            <RankingSidebar />
+
+            {/* Desktop Instructions - Right (Fixed) */}
+            <div className="sidebar-help sidebar-right">
+              <h3 className="text-display" style={{ color: 'var(--color-accent)', fontSize: '0.95rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>CÓMO JUGAR</h3>
+              <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '1rem', color: 'rgba(255,255,255,0.8)' }}>
+                <div>
+                  <p style={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.3rem' }}>TRUCO</p>
+                  <p>Vale 2 pts (o más con Re-Truco o Vale 4). Jugás 3 manos, gana el que gana 2. <strong style={{ color: 'var(--color-accent)' }}>En cada mano, la carta más alta del ranking gana.</strong> Messi le gana a todos.</p>
+                </div>
+                <div>
+                  <p style={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.3rem' }}>ENVIDO</p>
+                  <p style={{ marginBottom: '0.4rem' }}>Sumá los ENV de tus dos mejores jugadores que compartan <strong style={{ color: '#fff' }}>Selección</strong> o <strong style={{ color: '#fff' }}>Club</strong>.</p>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '8px', padding: '0.5rem', fontSize: '0.68rem' }}>
+                    <p style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.2rem' }}>Ej: Messi (ARG·10) + Yamal (ESP·19) + Haaland (NOR·9)</p>
+                    <p>→ Sin matches de país ni club: solo el más alto cuenta → <strong style={{ color: 'var(--color-primary)' }}>19</strong></p>
+                    <p style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.2rem', marginTop: '0.5rem' }}>Ej: CR7 (POR·7) + Mbappé (FRA·10) + Neymar (BRA·10)</p>
+                    <p>→ Sin matches de país ni club: solo el más alto cuenta → <strong style={{ color: 'var(--color-primary)' }}>10</strong></p>
+                  </div>
+                </div>
+                <div>
+                  <p style={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.3rem' }}>AL MAZO</p>
+                  <p>Retirarse de la mano. El rival gana 2 pts si fue en la 1ra ronda, 1 pt después.</p>
+                </div>
+              </div>
+            </div>
 
             {/* Main Board Container - Centralized */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               gap: '0.5rem',
-              width: '100%'
+              width: '100%',
+              maxWidth: '860px',
             }}>
               {/* CPU Hand Visualization */}
               <div style={{
@@ -696,10 +725,10 @@ function App() {
                   {/* Card Silhouettes (Placeholders) */}
                   {[0, 1, 2].map(col => [0, 1].map(row => {
                     const isMobile = window.innerWidth < 768;
-                    const spacing = isMobile ? 95 : 200;
+                    if (isMobile) return null;
+                    const spacing = 200;
                     const xPos = (col - 1) * spacing;
-                    const yOffset = isMobile ? 60 : 100;
-                    const yPos = row === 0 ? -yOffset : yOffset;
+                    const yPos = row === 0 ? -100 : 100;
 
                     return (
                       <div
@@ -747,11 +776,11 @@ function App() {
                           scale: isHero ? 1.15 : (isWinner ? 0.9 : 0.85),
                           filter: isHero
                             ? 'brightness(1.4) contrast(1.2) drop-shadow(0 0 50px rgba(255, 234, 0, 0.7))'
-                            : (isWinner 
-                                ? 'brightness(1.2) contrast(1.1) drop-shadow(0 0 20px rgba(255,255,255,0.4))' 
-                                : isLoser 
-                                  ? 'brightness(0.8) grayscale(0.3)' 
-                                  : 'brightness(1) grayscale(0)')
+                            : (isWinner
+                              ? 'brightness(1.2) contrast(1.1) drop-shadow(0 0 20px rgba(255,255,255,0.4))'
+                              : isLoser
+                                ? 'brightness(0.8) grayscale(0.3)'
+                                : 'brightness(1) grayscale(0)')
                         }}
                         transition={isHero ? {
                           type: "spring",
@@ -771,7 +800,7 @@ function App() {
                           filter: isLoser ? 'none' : 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))'
                         }}
                       >
-                        <Sticker card={card} disabled />
+                        <Sticker card={card} disabled hideEnv={isHero} />
                         {/* Label for owner */}
                         <div style={{
                           position: 'absolute',
@@ -836,7 +865,7 @@ function App() {
                         <Button variant="primary" onClick={() => {
                           triggerCall('EL ENVIDO ESTÁ PRIMERO!', '#fff');
                           handleCall('envido', 1, 'player');
-                        }}>ENVIDO</Button>
+                        }}>EL ENVIDO ESTÁ PRIMERO!</Button>
                       )}
 
                       {pendingAction.type === 'envido' && pendingAction.level < 3 && (
@@ -854,22 +883,32 @@ function App() {
                       exit={{ opacity: 0, y: -10 }}
                       style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}
                     >
-                      <Button
-                        variant="secondary"
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-                        disabled={isBusy || (trucoState.status !== 'none' && trucoState.caller === 'player') || trucoState.level >= 3}
-                        onClick={() => handleCall('truco', trucoState.level + 1, 'player')}
-                      >
-                        {trucoState.level === 0 ? 'TRUCO!' : trucoState.level === 1 ? 'RE-TRUCO!' : 'VALE 4!'}
-                      </Button>
-
                       {/* Envido only in first hand (playedCards.length 0 or 1) and before Truco */}
                       <Button
                         variant="primary"
                         style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
                         disabled={isBusy || envidoState.status !== 'none' || trucoState.status !== 'none' || playedCards.length > 1}
                         onClick={() => handleCall('envido', 1, 'player')}
-                      >ENVIDO</Button>
+                      >{envidoState.status !== 'none' && envidoState.caller === 'player' ? 'ENVIDO (rival)' : 'ENVIDO'}</Button>
+
+                      {(() => {
+                        const cpuHasTruco = trucoState.status !== 'none' && trucoState.caller === 'player';
+                        const trucoLabel = trucoState.level === 0
+                          ? 'TRUCO!'
+                          : trucoState.level === 1
+                            ? cpuHasTruco ? 'RE-TRUCO (rival)' : 'RE-TRUCO!'
+                            : cpuHasTruco ? 'VALE 4 (rival)' : 'VALE 4!';
+                        return (
+                          <Button
+                            variant="secondary"
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                            disabled={isBusy || cpuHasTruco || trucoState.level >= 3}
+                            onClick={() => handleCall('truco', trucoState.level + 1, 'player')}
+                          >
+                            {trucoLabel}
+                          </Button>
+                        );
+                      })()}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -889,11 +928,11 @@ function App() {
                       key={card.id}
                       layout
                       animate={{ y: [0, -8, 0] }}
-                      transition={{ 
-                        y: { 
-                          duration: 3 + idx * 0.5, 
-                          repeat: Infinity, 
-                          ease: "easeInOut" 
+                      transition={{
+                        y: {
+                          duration: 3 + idx * 0.5,
+                          repeat: Infinity,
+                          ease: "easeInOut"
                         },
                         default: { duration: 0.3 }
                       }}

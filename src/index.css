@@ -9,6 +9,37 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
+.sidebar-help {
+  width: 280px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 1.25rem;
+  color: rgba(255, 255, 255, 0.85);
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.sidebar-left {
+  left: 1.5rem;
+}
+
+.sidebar-right {
+  right: 1.5rem;
+}
+
+@media (max-width: 1300px) {
+  .sidebar-help {
+    display: none;
+  }
+}
+
 button, .btn-urban, [role="button"] {
   touch-action: manipulation;
   user-select: none;
