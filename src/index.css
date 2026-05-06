@@ -199,6 +199,13 @@ body {
   box-shadow: 2px 2px 0px #000;
 }
 
+.btn-urban:disabled {
+  opacity: 0.4;
+  filter: grayscale(1);
+  pointer-events: none;
+  box-shadow: none;
+}
+
 .btn-urban.secondary {
   background: var(--color-accent);
 }

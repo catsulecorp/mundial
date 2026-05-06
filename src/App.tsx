@@ -20,7 +20,13 @@ function App() {
   const cpuMoveTimeoutRef = useRef<any>(null);
   const interactionLockRef = useRef(false);
 
-  const isBusy = isCpuThinking || isRoundEnding || isCooldown;
+  // Truco & Envido State
+  const [trucoState, setTrucoState] = useState({ level: 0, caller: null as 'player' | 'cpu' | null, status: 'none' as 'none' | 'pending' | 'accepted' });
+  const [envidoState, setEnvidoState] = useState({ level: 0, caller: null as 'player' | 'cpu' | null, status: 'none' as 'none' | 'pending' | 'accepted' | 'finished' });
+  const [pendingAction, setPendingAction] = useState<{ type: 'truco' | 'envido'; level: number; caller: 'player' | 'cpu' } | null>(null);
+  const [handWinners, setHandWinners] = useState<('player' | 'cpu' | 'draw')[]>([]);
+
+  const isBusy = isCpuThinking || isRoundEnding || isCooldown || (pendingAction !== null && pendingAction.caller === 'cpu');
 
   const startCooldown = (ms: number = 1000) => {
     setIsCooldown(true);
@@ -36,6 +42,10 @@ function App() {
     setIsCpuThinking(false);
     setIsRoundEnding(false);
     setIsCooldown(false);
+    setTrucoState({ level: 0, caller: null, status: 'none' });
+    setEnvidoState({ level: 0, caller: null, status: 'none' });
+    setPendingAction(null);
+    setHandWinners([]);
     setPlayedCards([]);
     setPlayerHand(CARDS.slice(0, 3));
     cpuHandRef.current = CARDS.slice(3, 6);
@@ -43,39 +53,97 @@ function App() {
 
   const timersRef = useRef<any[]>([]);
 
-  // Monitor round end
+  // Monitor round and hand winners
   useEffect(() => {
-    if (playedCards.length >= 6 && !isRoundEnding) {
-      setIsRoundEnding(true);
-      interactionLockRef.current = true;
-      const playerWins = Math.random() > 0.5;
+    // 1. Determine hand winner when 2 cards are played for the hand
+    if (playedCards.length > 0 && playedCards.length % 2 === 0) {
+      const lastTwo = playedCards.slice(-2);
+      const playerCard = lastTwo.find(c => c.owner === 'player');
+      const cpuCard = lastTwo.find(c => c.owner === 'cpu');
       
-      // Clear any existing ROUND timers (but NOT necessarily the CPU move)
-      timersRef.current.forEach(clearTimeout);
-      timersRef.current = [];
-
-      // 1. Show Winner
-      timersRef.current.push(setTimeout(() => {
-        if (playerWins) {
-          setScore(prev => ({ ...prev, player: prev.player + 1 }));
-          triggerCall('¡GANASTE!', '#ffea00');
-        } else {
-          setScore(prev => ({ ...prev, cpu: prev.cpu + 1 }));
-          triggerCall('¡CPU GANA!', 'var(--color-secondary)');
-        }
-      }, 500));
-
-      // 2. Countdown sequence
-      timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 3...', '#ffffff'), 1500));
-      timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 2...', '#ffffff'), 2500));
-      timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 1...', '#ffffff'), 3500));
-      timersRef.current.push(setTimeout(() => resetRound(), 4500));
+      if (playerCard && cpuCard && handWinners.length < playedCards.length / 2) {
+        let winner: 'player' | 'cpu' | 'draw';
+        // LOWER power wins (VAL 1 > VAL 7)
+        if (playerCard.power < cpuCard.power) winner = 'player';
+        else if (cpuCard.power < playerCard.power) winner = 'cpu';
+        else winner = 'draw';
+        
+        setHandWinners(prev => [...prev, winner]);
+      }
     }
-    
-    return () => {
-      // Only clear on complete reset or unmount
-    };
-  }, [playedCards.length, isRoundEnding]);
+
+    // 2. Check for Round Winner (Best of 3)
+    if (!isRoundEnding && handWinners.length >= 2) {
+      let roundWinner: 'player' | 'cpu' | null = null;
+      
+      const pWins = handWinners.filter(w => w === 'player').length;
+      const cWins = handWinners.filter(w => w === 'cpu').length;
+      const draws = handWinners.filter(w => w === 'draw').length;
+      
+      // Traditional Best of 3 Logic
+      if (pWins >= 2) {
+        roundWinner = 'player';
+      } else if (cWins >= 2) {
+        roundWinner = 'cpu';
+      } else if (handWinners.length === 2) {
+        // Decide at 2nd hand ONLY if there was a draw or someone won both
+        if (draws === 1) {
+          // One won, one drew -> that winner takes the round
+          if (pWins === 1) roundWinner = 'player';
+          if (cWins === 1) roundWinner = 'cpu';
+        } else if (draws === 2) {
+          // Double draw -> keep going to 3rd hand
+        }
+        // If it's 1-1 (player-cpu), we don't set roundWinner, so it continues to 3rd hand.
+      } else if (handWinners.length === 3) {
+        // Final hand tie-breakers
+        if (pWins > cWins) roundWinner = 'player';
+        else if (cWins > pWins) roundWinner = 'cpu';
+        else {
+          // Tied in wins (e.g. draw-draw-draw or win-loss-draw)
+          // Rule: Whoever won the FIRST hand wins.
+          if (handWinners[0] === 'player') roundWinner = 'player';
+          else if (handWinners[0] === 'cpu') roundWinner = 'cpu';
+          else {
+            // If 1st hand was a draw, whoever won the 2nd wins
+            if (handWinners[1] === 'player') roundWinner = 'player';
+            else if (handWinners[1] === 'cpu') roundWinner = 'cpu';
+            else {
+              // If 1st and 2nd were draws, 3rd decides
+              if (handWinners[2] === 'player') roundWinner = 'player';
+              else roundWinner = 'cpu'; // Default to dealer/CPU
+            }
+          }
+        }
+      }
+
+      if (roundWinner) {
+        setIsRoundEnding(true);
+        interactionLockRef.current = true;
+        
+        const winner = roundWinner;
+        
+        // 1. Show Winner
+        timersRef.current.push(setTimeout(() => {
+          const points = trucoState.status === 'accepted' ? trucoState.level + 1 : 1;
+          
+          if (winner === 'player') {
+            setScore(prev => ({ ...prev, player: prev.player + points }));
+            triggerCall('¡GANASTE!', '#ffea00');
+          } else {
+            setScore(prev => ({ ...prev, cpu: prev.cpu + points }));
+            triggerCall('¡CPU GANA!', 'var(--color-secondary)');
+          }
+        }, 500));
+
+        // 2. Countdown sequence
+        timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 3...', '#ffffff'), 1500));
+        timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 2...', '#ffffff'), 2500));
+        timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 1...', '#ffffff'), 3500));
+        timersRef.current.push(setTimeout(() => resetRound(), 4500));
+      }
+    }
+  }, [playedCards.length, isRoundEnding, trucoState, handWinners]);
 
   const startGame = () => {
     if (cpuMoveTimeoutRef.current) clearTimeout(cpuMoveTimeoutRef.current);
@@ -105,8 +173,15 @@ function App() {
     const isOdd = playedCards.length % 2 !== 0;
     const isBoardNotFull = playedCards.length < 6;
     const lastCardWasPlayer = playedCards.length > 0 && playedCards[playedCards.length - 1].owner === 'player';
+    
+    // CPU leads if even number of cards and it won (or drew) last hand
+    const cpuShouldLead = 
+      (playedCards.length === 2 && handWinners[0] === 'cpu') ||
+      (playedCards.length === 4 && handWinners[1] === 'cpu') ||
+      (playedCards.length === 2 && handWinners[0] === 'draw') ||
+      (playedCards.length === 4 && handWinners[1] === 'draw' && handWinners[0] === 'cpu');
 
-    if (isOdd && isBoardNotFull && lastCardWasPlayer && !isRoundEnding) {
+    if (((isOdd && lastCardWasPlayer) || cpuShouldLead) && isBoardNotFull && !isRoundEnding) {
       setIsCpuThinking(true);
       
       const playId = Date.now();
@@ -119,6 +194,27 @@ function App() {
       if (cpuMoveTimeoutRef.current) clearTimeout(cpuMoveTimeoutRef.current);
       
       cpuMoveTimeoutRef.current = setTimeout(() => {
+        // CPU DECISION PHASE
+        const dice = Math.random();
+        
+        // 1. Check for Mazo (5% chance)
+        if (dice < 0.05) {
+          handleCpuMazo();
+          return;
+        }
+
+        // 2. Check for Truco (10% chance)
+        if (dice < 0.15 && trucoState.status === 'none') {
+          handleCall('truco', 1, 'cpu');
+          return;
+        }
+
+        // 3. Check for Envido (15% chance in first hand) - ONLY if no Truco called yet
+        if (dice < 0.30 && envidoState.status === 'none' && trucoState.status === 'none' && playedCards.length === 1) {
+          handleCall('envido', 1, 'cpu');
+          return;
+        }
+
         let cardToPlay: Card | null = null;
         
         if (cpuHandRef.current.length > 0) {
@@ -141,9 +237,19 @@ function App() {
         
         setIsCpuThinking(false);
         cpuMoveTimeoutRef.current = null;
-      }, 800);
+      }, 1000);
     }
-  }, [playedCards.length, isRoundEnding]);
+  }, [playedCards.length, isRoundEnding, trucoState.status, envidoState.status, handWinners]);
+
+  const handleCpuMazo = () => {
+    triggerCall('¡ME VOY AL MAZO!', 'var(--color-secondary)');
+    const points = trucoState.status === 'accepted' ? trucoState.level + 1 : 1;
+    setTimeout(() => {
+      setScore(prev => ({ ...prev, player: prev.player + points }));
+      triggerCall('¡GANASTE!', '#ffea00');
+    }, 1000);
+    setTimeout(() => resetRound(), 3000);
+  };
 
   const playCard = (card: Card) => {
     if (isBusy || !playerHand.some(c => c.id === card.id) || playedCards.length >= 6) return;
@@ -176,6 +282,139 @@ function App() {
     }, 5000);
   };
 
+  const calculateEnvido = (hand: Card[]) => {
+    // We use the 'env' property exclusively now
+    const values = hand.map(c => c.env ?? 0);
+    return Math.max(...values, 0);
+  };
+
+  const handleCall = (type: 'truco' | 'envido', level: number, caller: 'player' | 'cpu') => {
+    if (isRoundEnding) return;
+    startCooldown();
+
+    const texts = {
+      truco: ['TRUCO!', 'RE-TRUCO!', 'VALE 4!'],
+      envido: ['ENVIDO', 'REAL ENVIDO', 'FALTA ENVIDO']
+    };
+
+    const colors = {
+      truco: caller === 'player' ? '#ffea00' : 'var(--color-secondary)',
+      envido: caller === 'player' ? 'var(--color-primary)' : 'var(--color-secondary)'
+    };
+
+    triggerCall(texts[type][level - 1], colors[type]);
+
+    if (caller === 'player') {
+      // Simulate CPU response after 1.5s
+      setTimeout(() => {
+        const wants = Math.random() > 0.3;
+        if (wants) {
+          triggerCall('QUIERO!', 'var(--color-secondary)');
+          if (type === 'truco') {
+            setTrucoState({ level, caller, status: 'accepted' });
+          } else {
+            // Compare Envido points
+            const playerPts = calculateEnvido(playerHand);
+            const cpuPts = calculateEnvido(cpuHandRef.current);
+            const envPoints = level === 1 ? 2 : level === 2 ? 3 : 15; // Simple points for now
+
+            setTimeout(() => {
+              triggerCall(`${cpuPts}!`, 'var(--color-secondary)');
+              setTimeout(() => {
+                if (cpuPts >= playerPts) {
+                  triggerCall('¡GANÉ ENVIDO!', 'var(--color-secondary)');
+                  setScore(prev => ({ ...prev, cpu: prev.cpu + envPoints }));
+                } else {
+                  triggerCall(`${playerPts}!`, '#ffea00');
+                  setTimeout(() => {
+                    triggerCall('¡GANASTE ENVIDO!', '#ffea00');
+                    setScore(prev => ({ ...prev, player: prev.player + envPoints }));
+                  }, 1000);
+                }
+              }, 1000);
+            }, 500);
+            setEnvidoState({ level, caller, status: 'finished' });
+          }
+        } else {
+          triggerCall('NO QUIERO', 'var(--color-secondary)');
+          // Update score and trigger countdown on "No Quiero"
+          if (type === 'truco') {
+            setIsRoundEnding(true);
+            setScore(prev => ({ ...prev, player: prev.player + (level === 1 ? 1 : level - 1) }));
+            triggerCall('¡GANASTE!', '#ffea00');
+            
+            timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 3...', '#ffffff'), 1500));
+            timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 2...', '#ffffff'), 2500));
+            timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 1...', '#ffffff'), 3500));
+            timersRef.current.push(setTimeout(() => resetRound(), 4500));
+          } else {
+            setScore(prev => ({ ...prev, player: prev.player + 1 }));
+            setEnvidoState(prev => ({ ...prev, status: 'finished' }));
+          }
+        }
+      }, 1500);
+    } else {
+      setPendingAction({ type, level, caller });
+    }
+  };
+
+  const handleResponse = (wants: boolean) => {
+    if (!pendingAction) return;
+    startCooldown();
+
+    if (wants) {
+      triggerCall('QUIERO!', '#ffea00'); // Player says Quiero
+      if (pendingAction.type === 'truco') {
+        setTrucoState({ ...trucoState, status: 'accepted', level: pendingAction.level });
+      } else {
+        // Compare Envido points
+        const playerPts = calculateEnvido(playerHand);
+        const cpuPts = calculateEnvido(cpuHandRef.current);
+        const envPoints = pendingAction.level === 1 ? 2 : pendingAction.level === 2 ? 3 : 15;
+
+        setTimeout(() => {
+          triggerCall(`${playerPts}!`, '#ffea00');
+          setTimeout(() => {
+            if (playerPts > cpuPts) {
+              triggerCall('¡GANASTE ENVIDO!', '#ffea00');
+              setScore(prev => ({ ...prev, player: prev.player + envPoints }));
+            } else {
+              triggerCall(`${cpuPts}!`, 'var(--color-secondary)');
+              setTimeout(() => {
+                triggerCall('¡GANÉ ENVIDO!', 'var(--color-secondary)');
+                setScore(prev => ({ ...prev, cpu: prev.cpu + envPoints }));
+              }, 1000);
+            }
+          }, 1000);
+        }, 500);
+        setEnvidoState({ ...envidoState, status: 'finished', level: pendingAction.level });
+      }
+    } else {
+      triggerCall('NO QUIERO', '#ffffff'); // Player says No Quiero
+      if (pendingAction.type === 'truco') {
+        setIsRoundEnding(true);
+        setScore(prev => ({ ...prev, cpu: prev.cpu + (pendingAction.level === 1 ? 1 : pendingAction.level - 1) }));
+        triggerCall('¡CPU GANA!', 'var(--color-secondary)');
+        
+        timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 3...', '#ffffff'), 1500));
+        timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 2...', '#ffffff'), 2500));
+        timersRef.current.push(setTimeout(() => triggerCall('PRÓXIMA EN 1...', '#ffffff'), 3500));
+        timersRef.current.push(setTimeout(() => resetRound(), 4500));
+      } else {
+        setScore(prev => ({ ...prev, cpu: prev.cpu + 1 }));
+        setEnvidoState(prev => ({ ...prev, status: 'finished' }));
+      }
+    }
+    
+    const wasCpuTurn = pendingAction.caller === 'cpu';
+    setPendingAction(null);
+    
+    // If it was CPU's turn and they just called, they still need to play their card
+    if (wasCpuTurn && wants) {
+      setIsCpuThinking(false); // This will re-trigger the useEffect to play the card
+    }
+  };
+
   const handleMazo = () => {
     if (isBusy) return;
     
@@ -192,8 +431,9 @@ function App() {
     triggerCall('¡AL MAZO!', '#ffffff');
 
     // 2. Show Loss & Update Score (after 1s)
+    const points = trucoState.status === 'accepted' ? trucoState.level + 1 : 1;
     timersRef.current.push(setTimeout(() => {
-      setScore(prev => ({ ...prev, cpu: prev.cpu + 1 }));
+      setScore(prev => ({ ...prev, cpu: prev.cpu + points }));
       triggerCall('¡CPU GANA!', 'var(--color-secondary)');
     }, 1000));
 
@@ -430,31 +670,74 @@ function App() {
               marginTop: '0.5rem' 
             }}>
 
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <Button 
-                  variant="secondary" 
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
-                  disabled={isBusy}
-                  onClick={() => {
-                    startCooldown();
-                    triggerCall('¡TRUCO!', 'var(--color-accent)');
-                  }}
-                >TRUCO!</Button>
-                <Button 
-                  variant="primary" 
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
-                  disabled={isBusy}
-                  onClick={() => {
-                    startCooldown();
-                    triggerCall('¡ENVIDO!', 'var(--color-primary)');
-                  }}
-                >ENVIDO</Button>
-                <Button 
-                  variant="white" 
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
-                  disabled={isBusy}
-                  onClick={handleMazo}
-                >MAZO</Button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                <AnimatePresence mode="wait">
+                  {pendingAction ? (
+                    <motion.div 
+                      key="responses"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}
+                    >
+                      <Button variant="secondary" onClick={() => handleResponse(true)}>QUIERO</Button>
+                      <Button variant="white" onClick={() => handleResponse(false)}>NO QUIERO</Button>
+                      
+                      {pendingAction.type === 'truco' && pendingAction.level < 3 && (
+                        <Button variant="secondary" onClick={() => handleCall('truco', pendingAction.level + 1, 'player')}>
+                          {pendingAction.level === 1 ? 'RE-TRUCO' : 'VALE 4'}
+                        </Button>
+                      )}
+                      
+                      {pendingAction.type === 'truco' && envidoState.status === 'none' && playedCards.length === 1 && (
+                        <Button variant="primary" onClick={() => {
+                          triggerCall('EL ENVIDO ESTÁ PRIMERO!', '#fff');
+                          handleCall('envido', 1, 'player');
+                        }}>ENVIDO</Button>
+                      )}
+
+                      {pendingAction.type === 'envido' && pendingAction.level < 3 && (
+                        <Button variant="primary" onClick={() => handleCall('envido', pendingAction.level + 1, 'player')}>
+                          {pendingAction.level === 1 ? 'REAL ENVIDO' : 'FALTA ENVIDO'}
+                        </Button>
+                      )}
+
+                      <Button variant="white" onClick={handleMazo}>MAZO</Button>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="actions"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}
+                    >
+                      <Button 
+                        variant="secondary" 
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
+                        disabled={isBusy || (trucoState.status !== 'none' && trucoState.caller === 'player') || trucoState.level >= 3}
+                        onClick={() => handleCall('truco', trucoState.level + 1, 'player')}
+                      >
+                        {trucoState.level === 0 ? 'TRUCO!' : trucoState.level === 1 ? 'RE-TRUCO!' : 'VALE 4!'}
+                      </Button>
+                      
+                      {/* Envido only in first hand (playedCards.length 0 or 1) and before Truco */}
+                      <Button 
+                        variant="primary" 
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
+                        disabled={isBusy || envidoState.status !== 'none' || trucoState.status !== 'none' || playedCards.length > 1}
+                        onClick={() => handleCall('envido', 1, 'player')}
+                      >ENVIDO</Button>
+                      
+                      <Button 
+                        variant="white" 
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} 
+                        disabled={isBusy}
+                        onClick={handleMazo}
+                      >MAZO</Button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               
               <div style={{ 

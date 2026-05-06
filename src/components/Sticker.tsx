@@ -63,13 +63,12 @@ export const Sticker: React.FC<StickerProps> = ({ card, onClick, disabled }) => 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
           <div style={{ fontSize: '0.8rem' }}>
             <span style={{ color: 'rgba(255,255,255,0.7)' }}>VAL</span>
-            <div className="text-display" style={{ color: 'var(--color-accent)', fontSize: '1.2rem' }}>{card.value}</div>
+            <div className="text-display" style={{ color: 'var(--color-secondary)', fontSize: '1.2rem' }}>{card.power}</div>
           </div>
           <div style={{ fontSize: '0.8rem' }}>
             <span style={{ color: 'rgba(255,255,255,0.7)' }}>ENV</span>
-            <div className="text-display" style={{ color: 'var(--color-primary)', fontSize: '1.2rem' }}>{card.env || 10}</div>
+            <div className="text-display" style={{ color: 'var(--color-primary)', fontSize: '1.2rem' }}>{card.env}</div>
           </div>
-
         </div>
 
 
