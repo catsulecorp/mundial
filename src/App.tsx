@@ -12,17 +12,22 @@ import { motion, AnimatePresence } from "framer-motion";
 function App() {
   // Declarar todos los hooks de estado al principio
   const [gameState, setGameState] = useState<"landing" | "playing">("landing");
+  const [gameMode, setGameMode] = useState<"1v1" | "2v2">("1v1");
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
   const cpuHandRef = useRef<Card[]>([]);
+  const cpuPartnerHandRef = useRef<Card[]>([]);
+  const cpuOpponent2HandRef = useRef<Card[]>([]);
   const [playedCards, setPlayedCards] = useState<
     (Card & {
       rotation: number;
       x: number;
       y: number;
-      owner: "player" | "cpu";
+      owner: "player" | "cpu" | "partner" | "cpu2";
       instanceId: string;
     })[]
   >([]);
+  const [cpuPartnerHandCount, setCpuPartnerHandCount] = useState(0);
+  const [cpuOpponent2HandCount, setCpuOpponent2HandCount] = useState(0);
   const [score, setScore] = useState({ player: 0, cpu: 0 });
   const [isCpuThinking, setIsCpuThinking] = useState(false);
   const [activeCall, setActiveCall] = useState<{
@@ -50,6 +55,9 @@ function App() {
     caller: "player" | "cpu";
   } | null>(null);
   const [handWinners, setHandWinners] = useState<("player" | "cpu" | "draw")[]>([]);
+  const [starterIdx, setStarterIdx] = useState(0);
+  const [dealerIdx, setDealerIdx] = useState(3); // Start so Player(0) is first Mano
+  const [handWinningCardIds, setHandWinningCardIds] = useState<string[]>([]);
   const [scorePopups, setScorePopups] = useState<
     { id: number; value: number; owner: "player" | "cpu" }[]
   >([]);
@@ -70,6 +78,18 @@ function App() {
       setWinnerModal("cpu");
     }
   }, [score.player, score.cpu]);
+
+  useEffect(() => {
+    if (gameState === "landing") {
+      setActiveCall(null);
+      setScorePopups([]);
+      setHandWinners([]);
+      setPlayedCards([]);
+      setIsRoundEnding(false);
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+    }
+  }, [gameState]);
 
   const handleRestartGame = () => {
     setScore({ player: 0, cpu: 0 });
@@ -117,7 +137,8 @@ function App() {
     setTimeout(() => setIsCooldown(false), ms);
   };
 
-  const resetRound = () => {
+  const resetRound = (overrideMode?: "1v1" | "2v2") => {
+    const currentMode = overrideMode || gameMode;
     if (cpuMoveTimeoutRef.current) {
       clearTimeout(cpuMoveTimeoutRef.current);
       cpuMoveTimeoutRef.current = null;
@@ -138,7 +159,33 @@ function App() {
     setPlayerHand(CARDS.slice(0, 3));
     cpuHandRef.current = CARDS.slice(3, 6);
     setCpuHandCount(3);
+    if (currentMode === "2v2") {
+      cpuPartnerHandRef.current = CARDS.slice(6, 9);
+      cpuOpponent2HandRef.current = CARDS.slice(9, 12);
+      setCpuPartnerHandCount(3);
+      setCpuOpponent2HandCount(3);
+    } else {
+      cpuPartnerHandRef.current = [];
+      cpuOpponent2HandRef.current = [];
+      setCpuPartnerHandCount(0);
+      setCpuOpponent2HandCount(0);
+    }
     setRoundWinningCardId(null);
+    setHandWinningCardIds([]);
+    
+    // Rotate dealer and set first mano
+    const totalPlayers = currentMode === "2v2" ? 4 : 2;
+    // If it's a fresh game start (no winners yet), start with dealer 3 so player 0 is mano
+    if (handWinners.length === 0 && score.player === 0 && score.cpu === 0) {
+      setDealerIdx(totalPlayers - 1);
+      setStarterIdx(0);
+    } else {
+      setDealerIdx((prev) => {
+        const nextDealer = (prev + 1) % totalPlayers;
+        setStarterIdx((nextDealer + 1) % totalPlayers);
+        return nextDealer;
+      });
+    }
   };
 
   const timersRef = useRef<any[]>([]);
@@ -150,24 +197,49 @@ function App() {
 
   // Monitor round and hand winners
   useEffect(() => {
-    // 1. Determine hand winner when 2 cards are played for the hand
-    if (playedCards.length > 0 && playedCards.length % 2 === 0) {
-      const lastTwo = playedCards.slice(-2);
-      const playerCard = lastTwo.find((c) => c.owner === "player");
-      const cpuCard = lastTwo.find((c) => c.owner === "cpu");
-
-      if (
-        playerCard &&
-        cpuCard &&
-        handWinners.length < playedCards.length / 2
-      ) {
+    // 1. Determine hand winner when all cards are played for the hand
+    const cardsPerHand = gameMode === "2v2" ? 4 : 2;
+    if (playedCards.length > 0 && playedCards.length % cardsPerHand === 0) {
+      const currentHandIdx = Math.floor(playedCards.length / cardsPerHand) - 1;
+      if (handWinners.length <= currentHandIdx) {
+        const handCards = playedCards.slice(currentHandIdx * cardsPerHand, (currentHandIdx + 1) * cardsPerHand);
+        
         let winner: "player" | "cpu" | "draw";
-        // LOWER power wins (VAL 1 > VAL 7)
-        if (playerCard.power < cpuCard.power) winner = "player";
-        else if (cpuCard.power < playerCard.power) winner = "cpu";
-        else winner = "draw";
+        
+        if (gameMode === "1v1") {
+          const playerCard = handCards.find((c) => c.owner === "player");
+          const cpuCard = handCards.find((c) => c.owner === "cpu");
+          if (playerCard && cpuCard) {
+            if (playerCard.power < cpuCard.power) {
+              winner = "player";
+              setHandWinningCardIds(prev => [...prev, playerCard.instanceId]);
+              setStarterIdx(0);
+            } else if (cpuCard.power < playerCard.power) {
+              winner = "cpu";
+              setHandWinningCardIds(prev => [...prev, cpuCard.instanceId]);
+              setStarterIdx(1);
+            } else {
+              winner = "draw";
+            }
+            setHandWinners((prev) => [...prev, winner]);
+          }
+        } else {
+          const bestCard = handCards.reduce((prev, curr) => (curr.power < prev.power ? curr : prev));
+          
+          if (bestCard.owner === "player" || bestCard.owner === "partner") winner = "player";
+          else if (bestCard.owner === "cpu" || bestCard.owner === "cpu2") winner = "cpu";
+          else winner = "draw";
+          
+          setHandWinningCardIds(prev => [...prev, bestCard.instanceId]);
+          
+          // Counter-clockwise turn order: Player(0), CPU2(1), Partner(2), CPU1(3)
+          if (bestCard.owner === "player") setStarterIdx(0);
+          else if (bestCard.owner === "cpu2") setStarterIdx(1);
+          else if (bestCard.owner === "partner") setStarterIdx(2);
+          else if (bestCard.owner === "cpu") setStarterIdx(3);
 
-        setHandWinners((prev) => [...prev, winner]);
+          setHandWinners((prev) => [...prev, winner]);
+        }
       }
     }
 
@@ -235,7 +307,7 @@ function App() {
 
             if (winner === "player") {
               setScore((prev) => ({ ...prev, player: prev.player + points }));
-              triggerCall("¡GANASTE!", "#ffea00");
+              triggerCall(gameMode === "2v2" ? "¡GANARON!" : "¡GANASTE!", "#ffea00");
             } else {
               setScore((prev) => ({ ...prev, cpu: prev.cpu + points }));
               triggerCall("¡CPU GANA!", "var(--color-secondary)");
@@ -261,22 +333,14 @@ function App() {
         );
       }
     }
-  }, [playedCards.length, isRoundEnding, trucoState, handWinners]);
+  }, [playedCards.length, isRoundEnding, trucoState, handWinners, gameMode]);
 
-  const startGame = () => {
-    if (cpuMoveTimeoutRef.current) clearTimeout(cpuMoveTimeoutRef.current);
-    timersRef.current.forEach(clearTimeout);
-    interactionLockRef.current = false;
-    setGameState("playing");
-    setPlayedCards([]);
-    setIsCpuThinking(false);
-    setIsRoundEnding(false);
-    setIsCooldown(false);
-    setActiveCall(null);
+  const startGame = (mode: "1v1" | "2v2" = "1v1") => {
+    setGameMode(mode);
     setScore({ player: 0, cpu: 0 });
-    setPlayerHand(CARDS.slice(0, 3));
-    cpuHandRef.current = CARDS.slice(3, 6);
-    setCpuHandCount(3);
+    setWinnerModal(null);
+    setGameState("playing");
+    resetRound(mode);
   };
 
   const triggerCall = (
@@ -292,34 +356,61 @@ function App() {
 
   // Reactive CPU move trigger
   useEffect(() => {
-    const isOdd = playedCards.length % 2 !== 0;
-    const isBoardNotFull = playedCards.length < 6;
-    const lastCardWasPlayer =
-      playedCards.length > 0 &&
-      playedCards[playedCards.length - 1].owner === "player";
+    const cardsPerHand = gameMode === "2v2" ? 4 : 2;
+    const isBoardNotFull = playedCards.length < (gameMode === "2v2" ? 12 : 6);
+    
+    // Turn logic
+    let whoseTurn: "player" | "cpu" | "partner" | "cpu2" | null = null;
+    if (gameMode === "1v1") {
+      whoseTurn = (starterIdx + (playedCards.length % 2)) % 2 === 0 ? "player" : "cpu";
+    } else {
+      const turnIdx = (starterIdx + (playedCards.length % 4)) % 4;
+      // Counter-clockwise: Player (0) -> CPU2 Right (1) -> Partner Top (2) -> CPU1 Left (3)
+      if (turnIdx === 0) whoseTurn = "player";
+      else if (turnIdx === 1) whoseTurn = "cpu2";
+      else if (turnIdx === 2) whoseTurn = "partner";
+      else if (turnIdx === 3) whoseTurn = "cpu";
+    }
 
-    // CPU leads if even number of cards and it won (or drew) last hand
-    const cpuShouldLead =
-      (playedCards.length === 2 && handWinners[0] === "cpu") ||
-      (playedCards.length === 4 && handWinners[1] === "cpu") ||
-      (playedCards.length === 2 && handWinners[0] === "draw") ||
-      (playedCards.length === 4 &&
-        handWinners[1] === "draw" &&
-        handWinners[0] === "cpu");
+    const currentHandIdx = Math.floor(playedCards.length / cardsPerHand);
+    const isHandProcessed = handWinners.length === currentHandIdx;
+    const isActionActive = pendingAction !== null || isRoundEnding || isCooldown;
+    const isCpuTurn = whoseTurn === "cpu" || whoseTurn === "partner" || whoseTurn === "cpu2";
 
-    if (
-      ((isOdd && lastCardWasPlayer) || cpuShouldLead) &&
-      isBoardNotFull &&
-      !isRoundEnding
-    ) {
+    if (isCpuTurn && isBoardNotFull && isHandProcessed && !isActionActive && !isCpuThinking) {
       setIsCpuThinking(true);
 
       const playId = Date.now();
-      const isMobile = window.innerWidth < 768;
-      const cardIndex = Math.floor(playedCards.length / 2);
-      const spacing = isMobile ? 95 : 200;
-      const xPos = (cardIndex - 1) * spacing;
-      const yOffset = isMobile ? 60 : 100;
+      const handIdx = Math.floor(playedCards.length / cardsPerHand);
+      
+      let xPos = 0;
+      let yPos = 0;
+      let rotation = 0;
+
+      if (gameMode === "1v1") {
+        const isMobile = window.innerWidth < 768;
+        const spacing = isMobile ? 95 : 200;
+        xPos = (handIdx - 1) * spacing;
+        yPos = isMobile ? -60 : -100;
+      } else {
+        const spacing = 180;
+        const offset = 260;
+        const horizontalOffset = 320;
+        const verticalSpacing = 120;
+
+        if (whoseTurn === "cpu") { // Left
+          xPos = -horizontalOffset;
+          yPos = (handIdx - 1) * verticalSpacing;
+          rotation = 90;
+        } else if (whoseTurn === "partner") { // Top
+          xPos = (handIdx - 1) * spacing;
+          yPos = -offset;
+        } else if (whoseTurn === "cpu2") { // Right
+          xPos = horizontalOffset;
+          yPos = (handIdx - 1) * verticalSpacing;
+          rotation = -90;
+        }
+      }
 
       if (cpuMoveTimeoutRef.current) clearTimeout(cpuMoveTimeoutRef.current);
 
@@ -351,24 +442,42 @@ function App() {
         }
 
         let cardToPlay: Card | null = null;
+        let owner: "player" | "cpu" | "partner" | "cpu2" = "cpu";
 
-        if (cpuHandRef.current.length > 0) {
-          cardToPlay = cpuHandRef.current[0];
-          cpuHandRef.current = cpuHandRef.current.slice(1);
+        if (whoseTurn === "cpu") {
+          if (cpuHandRef.current.length > 0) {
+            cardToPlay = cpuHandRef.current[0];
+            cpuHandRef.current = cpuHandRef.current.slice(1);
+            setCpuHandCount(cpuHandRef.current.length);
+          }
+          owner = "cpu";
+        } else if (whoseTurn === "partner") {
+          if (cpuPartnerHandRef.current.length > 0) {
+            cardToPlay = cpuPartnerHandRef.current[0];
+            cpuPartnerHandRef.current = cpuPartnerHandRef.current.slice(1);
+            setCpuPartnerHandCount(cpuPartnerHandRef.current.length);
+          }
+          owner = "partner";
+        } else if (whoseTurn === "cpu2") {
+          if (cpuOpponent2HandRef.current.length > 0) {
+            cardToPlay = cpuOpponent2HandRef.current[0];
+            cpuOpponent2HandRef.current = cpuOpponent2HandRef.current.slice(1);
+            setCpuOpponent2HandCount(cpuOpponent2HandRef.current.length);
+          }
+          owner = "cpu2";
         }
 
         if (cardToPlay) {
           const cardObj = cardToPlay as Card;
           const cpuCardEntry = {
             ...cardObj,
-            rotation: (Math.random() - 0.5) * 5,
+            rotation: rotation + (Math.random() - 0.5) * 5,
             x: xPos,
-            y: -yOffset,
-            owner: "cpu" as const,
-            instanceId: `c-${cardObj.id}-${playId}`,
+            y: yPos,
+            owner: owner,
+            instanceId: `${owner}-${cardObj.id}-${playId}`,
           };
           setPlayedCards((prev) => [...prev, cpuCardEntry]);
-          setCpuHandCount((prev) => Math.max(0, prev - 1));
         }
 
         setIsCpuThinking(false);
@@ -381,6 +490,12 @@ function App() {
     trucoState.status,
     envidoState.status,
     handWinners,
+    gameMode,
+    starterIdx,
+    gameState,
+    isCooldown,
+    pendingAction,
+    isCpuThinking,
   ]);
 
   const handleCpuMazo = () => {
@@ -396,7 +511,7 @@ function App() {
     }
     setTimeout(() => {
       setScore((prev) => ({ ...prev, player: prev.player + points }));
-      triggerCall("¡GANASTE!", "#ffea00");
+      triggerCall(gameMode === "2v2" ? "¡GANARON!" : "¡GANASTE!", "#ffea00");
     }, 1000);
     setTimeout(() => resetRound(), 3000);
   };
@@ -418,11 +533,22 @@ function App() {
     }, 500);
 
     const playId = Date.now();
-    const isMobile = window.innerWidth < 768;
-    const cardIndex = Math.floor(playedCards.length / 2);
-    const spacing = isMobile ? 95 : 200;
-    const xPos = (cardIndex - 1) * spacing;
-    const yOffset = isMobile ? 60 : 100;
+    const handIdx = Math.floor(playedCards.length / (gameMode === "2v2" ? 4 : 2));
+    
+    let xPos = 0;
+    let yPos = 0;
+
+    if (gameMode === "1v1") {
+      const isMobile = window.innerWidth < 768;
+      const spacing = isMobile ? 95 : 200;
+      xPos = (handIdx - 1) * spacing;
+      yPos = isMobile ? 60 : 100;
+    } else {
+      const spacing = 180;
+      const offset = 260;
+      xPos = (handIdx - 1) * spacing;
+      yPos = offset;
+    }
 
     setPlayerHand((prev) => prev.filter((c) => c.id !== card.id));
 
@@ -430,7 +556,7 @@ function App() {
       ...card,
       rotation: (Math.random() - 0.5) * 5,
       x: xPos,
-      y: yOffset,
+      y: yPos,
       owner: "player" as const,
       instanceId: `p-${card.id}-${playId}`,
     };
@@ -479,51 +605,81 @@ function App() {
       setTimeout(() => {
         const wants = Math.random() > 0.3;
         if (wants) {
-          triggerCall("QUIERO!", "var(--color-secondary)");
+          triggerCall(gameMode === "2v2" ? "QUEREMOS!" : "QUIERO!", "var(--color-secondary)");
           if (type === "truco") {
             setTrucoState({ level, caller, status: "accepted" });
             setPendingAction(suspendedActionRef.current);
             suspendedActionRef.current = null;
           } else {
             // Compare Envido points
-            const playerPts = calculateEnvido(playerHand);
-            const cpuPts = calculateEnvido(cpuHandRef.current);
-            // Envido points: 1=2, 2=4, 3=7, 4=15
-            let envPoints = 2;
-            if (level === 2) envPoints = 4; // Envido (x2)
-            else if (level === 3) envPoints = 7; // Real Envido
-            else if (level === 4) envPoints = 15; // Falta Envido
+            const pPts = calculateEnvido(playerHand);
+            const partPts = calculateEnvido(cpuPartnerHandRef.current);
+            const c1Pts = calculateEnvido(cpuHandRef.current);
+            const c2Pts = calculateEnvido(cpuOpponent2HandRef.current);
 
-            setTimeout(() => {
-              triggerCall(`${cpuPts}!`, "var(--color-secondary)");
-              setTimeout(() => {
-                if (cpuPts >= playerPts) {
-                  triggerCall("¡GANÉ ENVIDO!", "var(--color-secondary)");
-                  setScore((prev) => ({ ...prev, cpu: prev.cpu + envPoints }));
-                  setTimeout(() => {
+            const playerTeamPts = Math.max(pPts, partPts);
+            const cpuTeamPts = Math.max(c1Pts, c2Pts);
+
+            let envPoints = 2;
+            if (level === 2) envPoints = 4;
+            else if (level === 3) envPoints = 7;
+            else if (level === 4) envPoints = 15;
+
+            if (gameMode === "1v1") {
+            // Sequential announcements
+            timersRef.current.push(setTimeout(() => {
+              triggerCall(`CPU: ${c1Pts}!`, "var(--color-secondary)");
+              timersRef.current.push(setTimeout(() => {
+                triggerCall(`Vos: ${pPts}!`, "#ffea00");
+                timersRef.current.push(setTimeout(() => {
+                  if (c1Pts >= pPts) {
+                    triggerCall("¡CPU GANA!", "var(--color-secondary)");
+                    setScore((prev) => ({ ...prev, cpu: prev.cpu + envPoints }));
+                  } else {
+                    triggerCall("¡GANASTE!", "#ffea00");
+                    setScore((prev) => ({ ...prev, player: prev.player + envPoints }));
+                  }
+                  timersRef.current.push(setTimeout(() => {
                     setPendingAction(suspendedActionRef.current);
                     suspendedActionRef.current = null;
-                  }, 1500);
-                } else {
-                  triggerCall(`${playerPts}!`, "#ffea00");
-                  setTimeout(() => {
-                    triggerCall("¡GANASTE ENVIDO!", "#ffea00");
-                    setScore((prev) => ({
-                      ...prev,
-                      player: prev.player + envPoints,
-                    }));
-                    setTimeout(() => {
-                      setPendingAction(suspendedActionRef.current);
-                      suspendedActionRef.current = null;
-                    }, 1500);
-                  }, 1000);
-                }
-              }, 1000);
-            }, 500);
+                  }, 1500));
+                }, 1000));
+              }, 800));
+            }, 500));
+          } else {
+            // 2v2 Envido logic
+            timersRef.current.push(setTimeout(() => {
+              triggerCall(`CPU 2: ${c2Pts}!`, "var(--color-secondary)");
+              timersRef.current.push(setTimeout(() => {
+                triggerCall(`Compañero: ${partPts}!`, "#4caf50");
+                timersRef.current.push(setTimeout(() => {
+                  triggerCall(`CPU 1: ${c1Pts}!`, "var(--color-secondary)");
+                  timersRef.current.push(setTimeout(() => {
+                    triggerCall(`Vos: ${pPts}!`, "#ffea00");
+                    
+                    timersRef.current.push(setTimeout(() => {
+                      if (cpuTeamPts >= playerTeamPts) {
+                        triggerCall("¡GANÓ EQUIPO CPU!", "var(--color-secondary)");
+                        setScore((prev) => ({ ...prev, cpu: prev.cpu + envPoints }));
+                      } else {
+                        triggerCall("¡GANÓ TU EQUIPO!", "#ffea00");
+                        setScore((prev) => ({ ...prev, player: prev.player + envPoints }));
+                      }
+                      
+                      timersRef.current.push(setTimeout(() => {
+                        setPendingAction(suspendedActionRef.current);
+                        suspendedActionRef.current = null;
+                      }, 1500));
+                    }, 1000));
+                  }, 800));
+                }, 800));
+              }, 800));
+            }, 500));
+          }
             setEnvidoState({ level, caller, status: "finished" });
           }
         } else {
-          triggerCall("NO QUIERO", "var(--color-secondary)");
+          triggerCall(gameMode === "2v2" ? "NO QUEREMOS" : "NO QUIERO", "var(--color-secondary)");
           // Update score and trigger countdown on "No Quiero"
           if (type === "truco") {
             setIsRoundEnding(true);
@@ -531,7 +687,7 @@ function App() {
               ...prev,
               player: prev.player + (level === 1 ? 1 : level - 1),
             }));
-            triggerCall("¡GANASTE!", "#ffea00");
+            triggerCall(gameMode === "2v2" ? "¡GANARON!" : "¡GANASTE!", "#ffea00");
 
             timersRef.current.push(
               setTimeout(() => triggerCall("PRÓXIMA EN 3...", "#ffffff"), 1500),
@@ -563,7 +719,7 @@ function App() {
     startCooldown();
 
     if (wants) {
-      triggerCall("QUIERO!", "#ffea00"); // Player says Quiero
+      triggerCall(gameMode === "2v2" ? "QUEREMOS!" : "QUIERO!", "#ffea00"); // Player says Quiero
       if (pendingAction.type === "truco") {
         setTrucoState({
           ...trucoState,
@@ -572,32 +728,61 @@ function App() {
         });
       } else {
         // Compare Envido points
-        const playerPts = calculateEnvido(playerHand);
-        const cpuPts = calculateEnvido(cpuHandRef.current);
-        // Envido points: 1=2, 2=4, 3=7, 4=15
-        let envPoints = 2;
-        if (pendingAction.level === 2) envPoints = 4; // Envido (x2)
-        else if (pendingAction.level === 3) envPoints = 7; // Real Envido
-        else if (pendingAction.level === 4) envPoints = 15; // Falta Envido
+        const pPts = calculateEnvido(playerHand);
+        const partPts = calculateEnvido(cpuPartnerHandRef.current);
+        const c1Pts = calculateEnvido(cpuHandRef.current);
+        const c2Pts = calculateEnvido(cpuOpponent2HandRef.current);
 
-        setTimeout(() => {
-          triggerCall(`${playerPts}!`, "#ffea00");
-          setTimeout(() => {
-            if (playerPts > cpuPts) {
-              triggerCall("¡GANASTE ENVIDO!", "#ffea00");
-              setScore((prev) => ({
-                ...prev,
-                player: prev.player + envPoints,
-              }));
-            } else {
-              triggerCall(`${cpuPts}!`, "var(--color-secondary)");
-              setTimeout(() => {
-                triggerCall("¡GANÉ ENVIDO!", "var(--color-secondary)");
-                setScore((prev) => ({ ...prev, cpu: prev.cpu + envPoints }));
-              }, 1000);
-            }
-          }, 1000);
-        }, 500);
+        const playerTeamPts = Math.max(pPts, partPts);
+        const cpuTeamPts = Math.max(c1Pts, c2Pts);
+
+        let envPoints = 2;
+        if (pendingAction.level === 2) envPoints = 4;
+        else if (pendingAction.level === 3) envPoints = 7;
+        else if (pendingAction.level === 4) envPoints = 15;
+
+        if (gameMode === "1v1") {
+          // 1v1 Envido logic
+          timersRef.current.push(setTimeout(() => {
+            triggerCall(`Vos: ${pPts}!`, "#ffea00");
+            timersRef.current.push(setTimeout(() => {
+              triggerCall(`CPU: ${c1Pts}!`, "var(--color-secondary)");
+              timersRef.current.push(setTimeout(() => {
+                if (pPts > c1Pts) {
+                  triggerCall("¡GANASTE!", "#ffea00");
+                  setScore((prev) => ({ ...prev, player: prev.player + envPoints }));
+                } else {
+                  triggerCall("¡CPU GANA!", "var(--color-secondary)");
+                  setScore((prev) => ({ ...prev, cpu: prev.cpu + envPoints }));
+                }
+              }, 1000));
+            }, 800));
+          }, 500));
+        } else {
+          // 2v2 Envido logic
+          timersRef.current.push(setTimeout(() => {
+            triggerCall(`Vos: ${pPts}!`, "#ffea00");
+            timersRef.current.push(setTimeout(() => {
+              triggerCall(`CPU 2: ${c2Pts}!`, "var(--color-secondary)");
+              timersRef.current.push(setTimeout(() => {
+                triggerCall(`Compañero: ${partPts}!`, "#4caf50");
+                timersRef.current.push(setTimeout(() => {
+                  triggerCall(`CPU 1: ${c1Pts}!`, "var(--color-secondary)");
+                  
+                  timersRef.current.push(setTimeout(() => {
+                    if (playerTeamPts > cpuTeamPts) {
+                      triggerCall("¡GANÓ TU EQUIPO!", "#ffea00");
+                      setScore((prev) => ({ ...prev, player: prev.player + envPoints }));
+                    } else {
+                      triggerCall("¡GANÓ EQUIPO CPU!", "var(--color-secondary)");
+                      setScore((prev) => ({ ...prev, cpu: prev.cpu + envPoints }));
+                    }
+                  }, 1000));
+                }, 800));
+              }, 800));
+            }, 800));
+          }, 500));
+        }
         setEnvidoState({
           ...envidoState,
           status: "finished",
@@ -605,7 +790,7 @@ function App() {
         });
       }
     } else {
-      triggerCall("NO QUIERO", "#ffffff"); // Player says No Quiero
+      triggerCall(gameMode === "2v2" ? "NO QUEREMOS" : "NO QUIERO", "#ffffff"); // Player says No Quiero
       if (pendingAction.type === "truco") {
         setIsRoundEnding(true);
         setScore((prev) => ({
@@ -706,7 +891,8 @@ function App() {
       }}
     >
       <AnimatePresence>
-        {activeCall && (
+        {/* Global/Landing calls can still be here, but game calls moved to field */}
+        {activeCall && gameState === "landing" && (
           <motion.div
             key={activeCall.id}
             initial={{ scale: 0, opacity: 0, x: "-50%", y: "-50%" }}
@@ -716,7 +902,7 @@ function App() {
               position: "fixed",
               top: "50%",
               left: "50%",
-              zIndex: 1000,
+              zIndex: 3000,
               pointerEvents: "none",
               width: "100%",
               textAlign: "center",
@@ -727,9 +913,9 @@ function App() {
               style={{
                 fontSize: "clamp(3rem, 15vw, 8rem)",
                 color: activeCall.color,
-                textShadow: `0 0 40px ${activeCall.color}88, 6px 6px 0px #000`,
+                textShadow: "8px 8px 0px #000, 0 0 20px rgba(0,0,0,0.5)",
                 WebkitTextStroke: "3px #000",
-                lineHeight: 1,
+                paintOrder: "stroke fill",
               }}
             >
               {activeCall.text}
@@ -771,135 +957,179 @@ function App() {
               overflowY: "auto",
             }}
           >
-            <RankingSidebar />
+            {/* Back Button */}
+            <button
+              onClick={() => {
+                setGameState("landing");
+                setActiveCall(null);
+                timersRef.current.forEach(clearTimeout);
+                timersRef.current = [];
+              }}
+              style={{
+                position: "fixed",
+                top: "20px",
+                left: "20px",
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "rgba(255,255,255,0.7)",
+                padding: "6px 14px",
+                borderRadius: "30px",
+                cursor: "pointer",
+                zIndex: 2000,
+                fontSize: "13px",
+                fontWeight: "500",
+                backdropFilter: "blur(8px)",
+                transition: "all 0.3s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                e.currentTarget.style.color = "white";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
+              }}
+            >
+              <span>←</span> VOLVER
+            </button>
+
+            {gameMode !== "2v2" && <RankingSidebar />}
 
             {/* Desktop Instructions - Right (Fixed) */}
-            <div className="sidebar-help sidebar-right">
-              <h3
-                className="text-display"
-                style={{
-                  color: "var(--color-accent)",
-                  fontSize: "0.95rem",
-                  marginBottom: "1rem",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                CÓMO JUGAR
-              </h3>
-              <div
-                style={{
-                  fontSize: "0.75rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1rem",
-                  color: "rgba(255,255,255,0.8)",
-                }}
-              >
-                <div>
-                  <p
-                    style={{
-                      fontWeight: "bold",
-                      color: "#fff",
-                      marginBottom: "0.3rem",
-                    }}
-                  >
-                    TRUCO
-                  </p>
-                  <p>
-                    Vale 2 pts (o más con Re-Truco o Vale 4). Jugás 3 manos,
-                    gana el que gana 2.{" "}
-                    <strong style={{ color: "var(--color-accent)" }}>
-                      En cada mano, la carta más alta del ranking gana.
-                    </strong>{" "}
-                    Messi le gana a todos.
-                  </p>
-                </div>
-                <div>
-                  <p
-                    style={{
-                      fontWeight: "bold",
-                      color: "#fff",
-                      marginBottom: "0.3rem",
-                    }}
-                  >
-                    ENVIDO
-                  </p>
-                  <p style={{ marginBottom: "0.4rem" }}>
-                    Sumá los ENV de tus dos mejores jugadores que compartan{" "}
-                    <strong style={{ color: "#fff" }}>Selección</strong> o{" "}
-                    <strong style={{ color: "#fff" }}>Club</strong>.
-                  </p>
-                  <div
-                    style={{
-                      background: "rgba(255,255,255,0.06)",
-                      borderRadius: "8px",
-                      padding: "0.5rem",
-                      fontSize: "0.68rem",
-                    }}
-                  >
+            {gameMode !== "2v2" && (
+              <div className="sidebar-help sidebar-right">
+                <h3
+                  className="text-display"
+                  style={{
+                    color: "var(--color-accent)",
+                    fontSize: "0.95rem",
+                    marginBottom: "1rem",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  CÓMO JUGAR
+                </h3>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    color: "rgba(255,255,255,0.8)",
+                  }}
+                >
+                  <div>
                     <p
                       style={{
-                        color: "var(--color-primary)",
                         fontWeight: "bold",
-                        marginBottom: "0.2rem",
+                        color: "#fff",
+                        marginBottom: "0.3rem",
                       }}
                     >
-                      Ej: Messi (ARG·10) + Yamal (ESP·19) + Haaland (NOR·9)
+                      TRUCO
                     </p>
                     <p>
-                      → Sin matches de país ni club: solo el más alto cuenta →{" "}
-                      <strong style={{ color: "var(--color-primary)" }}>
-                        19
-                      </strong>
+                      Vale 2 pts (o más con Re-Truco o Vale 4). Jugás 3 manos,
+                      gana el que gana 2.{" "}
+                      <strong style={{ color: "var(--color-accent)" }}>
+                        En cada mano, la carta más alta del ranking gana.
+                      </strong>{" "}
+                      Messi le gana a todos.
                     </p>
+                  </div>
+                  <div>
                     <p
                       style={{
-                        color: "var(--color-primary)",
                         fontWeight: "bold",
-                        marginBottom: "0.2rem",
-                        marginTop: "0.5rem",
+                        color: "#fff",
+                        marginBottom: "0.3rem",
                       }}
                     >
-                      Ej: CR7 (POR·7) + Mbappé (FRA·10) + Neymar (BRA·10)
+                      ENVIDO
+                    </p>
+                    <p style={{ marginBottom: "0.4rem" }}>
+                      Sumá los ENV de tus dos mejores jugadores que compartan{" "}
+                      <strong style={{ color: "#fff" }}>Selección</strong> o{" "}
+                      <strong style={{ color: "#fff" }}>Club</strong>.
+                    </p>
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        borderRadius: "8px",
+                        padding: "0.5rem",
+                        fontSize: "0.68rem",
+                      }}
+                    >
+                      <p
+                        style={{
+                          color: "var(--color-primary)",
+                          fontWeight: "bold",
+                          marginBottom: "0.2rem",
+                        }}
+                      >
+                        Ej: Messi (ARG·10) + Yamal (ESP·19) + Haaland (NOR·9)
+                      </p>
+                      <p>
+                        → Sin matches de país ni club: solo el más alto cuenta →{" "}
+                        <strong style={{ color: "var(--color-primary)" }}>
+                          19
+                        </strong>
+                      </p>
+                      <p
+                        style={{
+                          color: "var(--color-primary)",
+                          fontWeight: "bold",
+                          marginBottom: "0.2rem",
+                          marginTop: "0.5rem",
+                        }}
+                      >
+                        Ej: CR7 (POR·7) + Mbappé (FRA·10) + Neymar (BRA·10)
+                      </p>
+                      <p>
+                        → Sin matches de país ni club: solo el más alto cuenta →{" "}
+                        <strong style={{ color: "var(--color-primary)" }}>
+                          10
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontWeight: "bold",
+                        color: "#fff",
+                        marginBottom: "0.3rem",
+                      }}
+                    >
+                      AL MAZO
                     </p>
                     <p>
-                      → Sin matches de país ni club: solo el más alto cuenta →{" "}
-                      <strong style={{ color: "var(--color-primary)" }}>
-                        10
-                      </strong>
+                      Retirarse de la mano. El rival gana 2 pts si fue en la 1ra ronda, 1 pt después.
+                    </p>
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontWeight: "bold",
+                        color: "#fff",
+                        marginBottom: "0.3rem",
+                      }}
+                    >
+                      FINAL DEL JUEGO
+                    </p>
+                    <p>
+                      <strong style={{ color: 'var(--color-accent)' }}>El primero en llegar a 30 puntos gana la partida.</strong> ¡A jugar otra vez desde el modal!
                     </p>
                   </div>
                 </div>
-                <div>
-                  <p
-                    style={{
-                      fontWeight: "bold",
-                      color: "#fff",
-                      marginBottom: "0.3rem",
-                    }}
-                  >
-                    AL MAZO
-                  </p>
-                  <p>
-                    Retirarse de la mano. El rival gana 2 pts si fue en la 1ra ronda, 1 pt después.
-                  </p>
-                </div>
-                <div>
-                  <p
-                    style={{
-                      fontWeight: "bold",
-                      color: "#fff",
-                      marginBottom: "0.3rem",
-                    }}
-                  >
-                    FINAL DEL JUEGO
-                  </p>
-                  <p>
-                    <strong style={{ color: 'var(--color-accent)' }}>El primero en llegar a 30 puntos gana la partida.</strong> ¡A jugar otra vez desde el modal!
-                  </p>
-                </div>
               </div>
-            </div>
+            )}
 
             {/* Main Board Container - Centralized */}
             <div
@@ -910,102 +1140,117 @@ function App() {
                 justifyContent: "flex-start",
                 gap: "0.5rem",
                 width: "100%",
-                maxWidth: "860px",
+                maxWidth: gameMode === "2v2" ? "1200px" : "860px",
               }}
             >
-              {/* CPU Hand Visualization */}
+              {/* CPU Hands Visualization (Top) */}
               <div
                 style={{
                   display: "flex",
-                  gap: "10px",
+                  width: "100%",
+                  justifyContent: "center",
+                  padding: "0 1rem",
                   marginBottom: "10px",
                   height: "60px",
+                  boxSizing: "border-box",
                 }}
               >
-                <AnimatePresence>
-                  {[...Array(cpuHandCount)].map((_, i) => (
-                    <motion.div
-                      key={`cpu-card-${i}`}
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.5 }}
-                      className="cpu-card-back"
-                    />
-                  ))}
-                </AnimatePresence>
+                {gameMode === "1v1" ? (
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <AnimatePresence>
+                      {[...Array(cpuHandCount)].map((_, i) => (
+                        <motion.div
+                          key={`cpu-card-${i}`}
+                          initial={{ opacity: 0, y: -20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.5 }}
+                          className="cpu-card-back"
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <AnimatePresence>
+                      {cpuPartnerHandRef.current.slice(0, cpuPartnerHandCount).map((card, i) => (
+                        <motion.div
+                          key={`partner-card-${card.id}-${i}`}
+                          initial={{ opacity: 0, y: -20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.5 }}
+                          whileHover={{ scale: 2.5, y: 40, zIndex: 100 }}
+                          style={{ width: "42px", height: "57px", position: "relative", zIndex: 1, cursor: "pointer" }}
+                        >
+                          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%) scale(0.3)", pointerEvents: "none" }}>
+                            <Sticker card={card} disabled />
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
 
-              {/* Integrated Info Section - Now Top */}
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "0.1rem",
-                  position: "relative",
-                }}
-              >
-                <Scoreboard
-                  scoreA={score.player}
-                  scoreB={score.cpu}
-                  labelA="VOS"
-                  labelB="CPU"
-                />
+              {/* Scoreboard repositioned for 2v2: Only show here for 1v1 */}
+              {gameMode === "1v1" && (
+                <div style={{ marginBottom: "10px", zIndex: 100 }}>
+                  <Scoreboard
+                    scoreA={score.player}
+                    scoreB={score.cpu}
+                    labelA="VOS"
+                    labelB="CPU"
+                  />
+                  <div style={{ position: "relative" }}>
+                    <AnimatePresence>
+                      {scorePopups.map((popup) => (
+                        <motion.div
+                          key={popup.id}
+                          initial={{ opacity: 0, y: 0, x: popup.owner === "player" ? -90 : 70 }}
+                          animate={{ opacity: 1, y: -40 }}
+                          exit={{ opacity: 0, y: -80 }}
+                          transition={{ duration: 0.5 }}
+                          style={{
+                            position: "absolute",
+                            top: "-60px",
+                            left: "50%",
+                            color: "var(--color-accent)",
+                            fontSize: "2rem",
+                            fontWeight: "900",
+                            zIndex: 1000,
+                            textShadow: "0 0 15px rgba(0,0,0,0.8), 4px 4px 0px #000",
+                            pointerEvents: "none"
+                          }}
+                        >
+                          +{popup.value}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
 
-                {/* Score Popups */}
-                <AnimatePresence>
-                  {scorePopups.map((popup) => (
-                    <motion.div
-                      key={popup.id}
-                      initial={{
-                        opacity: 0,
-                        y: 0,
-                        x: popup.owner === "player" ? -90 : 70,
-                      }}
-                      animate={{ opacity: 1, y: -40 }}
-                      exit={{ opacity: 0, y: -80 }}
-                      transition={{ duration: 0.5 }}
-                      style={{
-                        position: "absolute",
-                        top: "20px",
-                        left: "50%",
-                        color: "var(--color-accent)",
-                        fontSize: "2rem",
-                        fontWeight: "900",
-                        textShadow: "0 0 15px rgba(0,0,0,0.8)",
-                        zIndex: 100,
-                        pointerEvents: "none",
-                      }}
-                    >
-                      +{popup.value}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+              {/* Info Section moved inside Field */}
 
-                <h2
-                  className="text-display"
-                  onClick={() => setGameState("landing")}
-                  style={{
-                    fontSize: "clamp(0.9rem, 4vw, 1.5rem)",
-                    opacity: 0.8,
-                    letterSpacing: "0.2em",
-                    marginTop: "0.25rem",
-                    cursor: "pointer",
-                    transition: "opacity 0.2s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.8")}
-                >
-                  MUCHO MUNDIAL
-                </h2>
-              </div>
+              {/* Row container for CPU Left, Field, CPU Right */}
+              <div style={{ display: "flex", width: "100%", justifyContent: "center", alignItems: "center", gap: "15px" }}>
+                {gameMode === "2v2" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", zIndex: 10 }}>
+                    <AnimatePresence>
+                      {[...Array(cpuHandCount)].map((_, i) => (
+                        <div key={`cpu-wrapper-${i}`} style={{ width: "55px", height: "35px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.5 }} className="cpu-card-back" style={{ width: "55px", height: "35px" }} />
+                        </div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
 
               {/* The Field */}
               <div
                 style={{
                   width: "100%",
-                  maxWidth: "800px",
-                  aspectRatio: "16/10",
+                  maxWidth: gameMode === "2v2" ? "1000px" : "800px",
+                  aspectRatio: gameMode === "2v2" ? "1.4/1" : "16/10",
                   background: "rgba(255,255,255,0.06)",
                   border: "2px dashed rgba(255,255,255,0.2)",
                   borderRadius: "24px",
@@ -1018,27 +1263,200 @@ function App() {
                   overflow: "visible",
                 }}
               >
+                {/* Center Field UI Container (Scoreboard + Title) */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "1rem",
+                    zIndex: 1000,
+                    pointerEvents: "none"
+                  }}
+                >
+                  <AnimatePresence>
+                    {activeCall && gameState === "playing" && (
+                      <motion.div
+                        key={activeCall.id}
+                        initial={{ scale: 0, opacity: 0, x: "-50%", y: 0 }}
+                        animate={{ scale: 1.2, opacity: 1, x: "-50%", y: -40 }}
+                        exit={{ scale: 1.8, opacity: 0, x: "-50%", y: -120 }}
+                        style={{
+                          position: "absolute",
+                          top: "0",
+                          left: "50%",
+                          zIndex: 2000,
+                          width: "max-content",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <div
+                          className="text-display"
+                          style={{
+                            fontSize: "clamp(2rem, 12vw, 6rem)",
+                            color: activeCall.color,
+                            textShadow: "8px 8px 0px #000, 0 0 30px rgba(0,0,0,0.5)",
+                            WebkitTextStroke: "3px #000",
+                            paintOrder: "stroke fill",
+                            whiteSpace: "nowrap",
+                            textAlign: "center",
+                            lineHeight: 1
+                          }}
+                        >
+                          {activeCall.text}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {gameMode === "1v1" ? (
+                    <h2
+                      className="text-display"
+                      style={{
+                        fontSize: "clamp(1.2rem, 6vw, 2.8rem)",
+                        opacity: 0.12,
+                        letterSpacing: "0.25em",
+                        margin: 0,
+                        color: "white",
+                        userSelect: "none",
+                        whiteSpace: "nowrap",
+                        textShadow: "0 0 10px rgba(0,0,0,0.5), 2px 2px 0px #000"
+                      }}
+                    >
+                      MUCHO MUNDIAL
+                    </h2>
+                  ) : (
+                    <>
+                      <h2
+                        className="text-display"
+                        style={{
+                          fontSize: "1.8rem",
+                          opacity: 0.3,
+                          letterSpacing: "0.2em",
+                          margin: 0,
+                          color: "white",
+                          userSelect: "none",
+                          whiteSpace: "nowrap",
+                          textShadow: "0 0 20px rgba(0,0,0,0.5), 2px 2px 0px #000"
+                        }}
+                      >
+                        MUCHO MUNDIAL
+                      </h2>
+                      <div style={{ opacity: 0.8, pointerEvents: "auto" }}>
+                        <Scoreboard
+                          scoreA={score.player}
+                          scoreB={score.cpu}
+                          labelA="USTEDES"
+                          labelB="CPU"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* Visual Deck (Mazo) - Positioned to the right of the starter */}
+                <div
+                  style={{
+                    position: "absolute",
+                    ...(gameMode === "1v1" 
+                      ? (dealerIdx === 0 ? { right: "20px", bottom: "20px" } : { left: "20px", top: "20px" })
+                      : (dealerIdx === 0 ? { right: "20px", bottom: "20px" } : 
+                         dealerIdx === 1 ? { right: "20px", top: "20px" } :
+                         dealerIdx === 2 ? { left: "20px", top: "20px" } :
+                         { left: "20px", bottom: "20px" })),
+                    width: (gameMode === "2v2" && (dealerIdx === 0 || dealerIdx === 2)) ? "70px" : "45px",
+                    height: (gameMode === "2v2" && (dealerIdx === 0 || dealerIdx === 2)) ? "45px" : "70px",
+                    zIndex: 5,
+                    transform: `rotate(${gameMode === "1v1" 
+                      ? (dealerIdx === 0 ? -5 : 5) 
+                      : (dealerIdx === 0 ? 85 : dealerIdx === 1 ? 5 : dealerIdx === 2 ? -95 : 175)}deg)`,
+                  }}
+                >
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={`deck-${i}`}
+                      className="cpu-card-back"
+                      style={{
+                        position: "absolute",
+                        top: -i * 2,
+                        left: -i * 1.5,
+                        width: "100%",
+                        height: "100%",
+                        backgroundSize: "cover",
+                        boxShadow: "-2px 2px 5px rgba(0,0,0,0.4)",
+                      }}
+                    />
+                  ))}
+                </div>
+
                 <AnimatePresence>
                   {/* Card Silhouettes (Placeholders) */}
-                  {[0, 1, 2].map((col) =>
-                    [0, 1].map((row) => {
-                      const isMobile = window.innerWidth < 768;
-                      if (isMobile) return null;
-                      const spacing = 200;
-                      const xPos = (col - 1) * spacing;
-                      const yPos = row === 0 ? -100 : 100;
+                  {gameMode === "1v1" ? (
+                    [0, 1, 2].map((col) =>
+                      [0, 1].map((row) => {
+                        const isMobile = window.innerWidth < 768;
+                        if (isMobile) return null;
+                        const spacing = 200;
+                        const xPos = (col - 1) * spacing;
+                        const yPos = row === 0 ? -100 : 100;
 
-                      return (
-                        <div
-                          key={`sil-${col}-${row}`}
-                          className="card-silhouette"
-                          style={{
-                            transform: `translate(${xPos}px, ${yPos}px) rotateX(30deg) scale(0.85)`,
-                            position: "absolute",
-                          }}
-                        />
-                      );
-                    }),
+                        return (
+                          <div
+                            key={`sil-${col}-${row}`}
+                            className="card-silhouette"
+                            style={{
+                              transform: `translate(${xPos}px, ${yPos}px) rotateX(30deg) scale(0.85)`,
+                              position: "absolute",
+                            }}
+                          />
+                        );
+                      }),
+                    )
+                  ) : (
+                    ["bottom", "top", "left", "right"].flatMap((pos) =>
+                      [0, 1, 2].map((idx) => {
+                        const isMobile = window.innerWidth < 768;
+                        if (isMobile) return null;
+                        
+                        let xPos = 0;
+                        let yPos = 0;
+                        let rotation = 0;
+                        
+                        const spacing = 180; 
+                        const offset = 260; 
+                        const horizontalOffset = 320; 
+                        const verticalSpacing = 120;
+
+                        if (pos === "bottom") {
+                          xPos = (idx - 1) * spacing;
+                          yPos = offset;
+                        } else if (pos === "top") {
+                          xPos = (idx - 1) * spacing;
+                          yPos = -offset;
+                        } else if (pos === "left") {
+                          xPos = -horizontalOffset;
+                          yPos = (idx - 1) * verticalSpacing;
+                          rotation = 90;
+                        } else if (pos === "right") {
+                          xPos = horizontalOffset;
+                          yPos = (idx - 1) * verticalSpacing;
+                          rotation = -90;
+                        }
+
+                        return (
+                          <div
+                            key={`sil-${pos}-${idx}`}
+                            className="card-silhouette"
+                            style={{
+                              transform: `translate(${xPos}px, ${yPos}px) rotateZ(${rotation}deg) rotateX(30deg) scale(0.75)`,
+                              position: "absolute",
+                            }}
+                          />
+                        );
+                      })
+                    )
                   )}
 
                   {playedCards.map((card, index) => {
@@ -1065,21 +1483,24 @@ function App() {
                           rotateY: card.owner === "cpu" ? 180 : 0,
                           scale: 1.2,
                         }}
+                        whileHover={{ scale: 1.5, zIndex: 100 }}
                         animate={{
                           y: isHero ? card.y - 60 : card.y,
                           x: card.x,
-                          opacity: isLoser ? 0.65 : 1,
+                          opacity: isLoser ? 0.65 : (gameMode === "2v2" && Math.floor(playedCards.length / 4) > Math.floor(index / 4) && !handWinningCardIds.includes(card.instanceId)) ? 0.4 : 1,
                           rotateX: isHero ? 20 : 30,
                           rotateY: 0,
                           rotateZ: card.rotation,
-                          scale: isHero ? 1.15 : isWinner ? 0.9 : 0.85,
+                          scale: isHero ? 1.15 : isWinner ? 0.9 : handWinningCardIds.includes(card.instanceId) ? 1.05 : 0.85,
                           filter: isHero
                             ? "brightness(1.4) contrast(1.2) drop-shadow(0 0 50px rgba(255, 234, 0, 0.7))"
-                            : isWinner
-                              ? "brightness(1.2) contrast(1.1) drop-shadow(0 0 20px rgba(255,255,255,0.4))"
-                              : isLoser
-                                ? "brightness(0.8) grayscale(0.3)"
-                                : "brightness(1) grayscale(0)",
+                            : handWinningCardIds.includes(card.instanceId)
+                              ? "brightness(1.3) contrast(1.1) drop-shadow(0 0 30px rgba(255,255,255,0.6))"
+                              : isWinner
+                                ? "brightness(1.2) contrast(1.1) drop-shadow(0 0 20px rgba(255,255,255,0.4))"
+                                : isLoser || (gameMode === "2v2" && Math.floor(playedCards.length / 4) > Math.floor(index / 4) && !handWinningCardIds.includes(card.instanceId))
+                                  ? "brightness(0.6) grayscale(0.8)"
+                                  : "brightness(1) grayscale(0)",
                         }}
                         transition={
                           isHero
@@ -1134,19 +1555,60 @@ function App() {
                   })}
                 </AnimatePresence>
 
-                {playedCards.length === 0 && (
-                  <p
-                    style={{
-                      color: "var(--color-text-muted)",
-                      fontSize: "0.8rem",
-                      letterSpacing: "0.1em",
-                    }}
-                  >
-                    CAMPO DE JUEGO
-                  </p>
-                )}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    zIndex: 0,
+                  }}
+                >
+                  {/* Score Popups */}
+                  <AnimatePresence>
+                    {scorePopups.map((popup) => (
+                      <motion.div
+                        key={popup.id}
+                        initial={{ opacity: 0, y: 0, x: popup.owner === "player" ? -90 : 70 }}
+                        animate={{ opacity: 1, y: -40 }}
+                        exit={{ opacity: 0, y: -80 }}
+                        transition={{ duration: 0.5 }}
+                        style={{
+                          position: "absolute",
+                          top: "-20px",
+                          left: "50%",
+                          color: "var(--color-accent)",
+                          fontSize: "2rem",
+                          fontWeight: "900",
+                          textShadow: "0 0 15px rgba(0,0,0,0.8), 4px 4px 0px #000",
+                          zIndex: 100,
+                          pointerEvents: "none",
+                        }}
+                      >
+                        +{popup.value}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
               </div>
+
+              {gameMode === "2v2" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", zIndex: 10 }}>
+                  <AnimatePresence>
+                    {[...Array(cpuOpponent2HandCount)].map((_, i) => (
+                      <div key={`cpu2-wrapper-${i}`} style={{ width: "55px", height: "35px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.5 }} className="cpu-card-back" style={{ width: "55px", height: "35px" }} />
+                      </div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
+          </div>
 
             {/* Actions / Hand - Bottom Fixed */}
             <div
@@ -1203,13 +1665,13 @@ function App() {
                         style={pendingAction.type === "envido" ? { background: "var(--color-primary)", color: "#000", fontWeight: 700, border: "4px solid #000" } : {}}
                         onClick={() => handleResponse(true)}
                       >
-                        QUIERO
+                        {gameMode === "2v2" ? "QUEREMOS" : "QUIERO"}
                       </Button>
                       <Button
                         variant="white"
                         onClick={() => handleResponse(false)}
                       >
-                        NO QUIERO
+                        {gameMode === "2v2" ? "NO QUEREMOS" : "NO QUIERO"}
                       </Button>
 
                       {/* Escalations (Right) */}
@@ -1282,7 +1744,7 @@ function App() {
                         >
                           {envidoState.status !== "none" &&
                           envidoState.caller === "player"
-                            ? "ENVIDO (rival)"
+                            ? (gameMode === "2v2" ? "ENVIDO (rivales)" : "ENVIDO (rival)")
                             : "ENVIDO"}
                         </Button>
                       )}
@@ -1296,10 +1758,10 @@ function App() {
                             ? "TRUCO!"
                             : trucoState.level === 1
                               ? cpuHasTruco
-                                ? "RE-TRUCO (rival)"
+                                ? (gameMode === "2v2" ? "RE-TRUCO (rivales)" : "RE-TRUCO (rival)")
                                 : "RE-TRUCO!"
                               : cpuHasTruco
-                                ? "VALE 4 (rival)"
+                                ? (gameMode === "2v2" ? "VALE 4 (rivales)" : "VALE 4 (rival)")
                                 : "VALE 4!";
                         return (
                           <Button

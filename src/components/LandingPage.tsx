@@ -7,7 +7,7 @@ import { CARDS } from '../data/cards';
 
 
 interface LandingPageProps {
-  onStart: () => void;
+  onStart: (mode: "1v1" | "2v2") => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
@@ -96,8 +96,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
 
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-          <Button onClick={onStart} variant="secondary" className="btn-landing">
-            <Zap fill="currentColor" /> JUGAR AHORA
+          <Button onClick={() => onStart("1v1")} variant="secondary" className="btn-landing">
+            <Zap fill="currentColor" /> 1 VS 1
+          </Button>
+          <Button onClick={() => onStart("2v2")} variant="secondary" className="btn-landing desktop-only">
+            <Zap fill="currentColor" /> 2 VS 2
           </Button>
         </div>
 
