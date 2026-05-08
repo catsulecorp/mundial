@@ -45,7 +45,7 @@ export const PointSelector: React.FC<PointSelectorProps> = ({ onSelect }) => {
         >
           <span style={{ width: '100%', textAlign: 'center' }}>30</span>
         </Button>
-        <span style={{ fontSize: '0.8rem', fontWeight: 900, opacity: 0.8, letterSpacing: '0.1em', color: '#fff' }}>COMPLETA</span>
+        <span style={{ fontSize: '0.8rem', fontWeight: 900, opacity: 0.8, letterSpacing: '0.1em', color: '#fff' }}>CLÁSICA</span>
       </div>
     </div>
   );

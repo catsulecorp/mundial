@@ -53,7 +53,7 @@ export const RoundCountdown: React.FC<RoundCountdownProps> = ({ isActive, isGame
               <div
                 className="text-display"
                 style={{
-                  fontSize: "clamp(2rem, 8vw, 6rem)",
+                  fontSize: "clamp(1.5rem, 6vw, 4rem)",
                   color: "#fff",
                   textShadow: "8px 8px 0px #000, 0 0 20px rgba(0,0,0,0.5)",
                   WebkitTextStroke: "3px #000",

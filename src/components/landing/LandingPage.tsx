@@ -45,8 +45,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, sessionId }) 
 
   const initiateGame = (mode: "1v1" | "2v2" | "multiplayer", points: 15 | 30) => {
     if (mode === 'multiplayer') {
-      if (!user) alert("Debes iniciar sesión para jugar online.");
-      else {
+      if (!user) {
+        alert("Debes iniciar sesión para jugar online.");
+        setIsSelectingPoints(false);
+      } else {
         setSelectedMaxPoints(points);
         setIsWaiting(true);
         setTimeLeft(300);
@@ -116,20 +118,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, sessionId }) 
       padding: '2rem',
       position: 'relative',
       overflowX: 'hidden'
-    }}>
-      {/* Fixed Auth Button - Rock Solid Position */}
+    }}>      {/* Auth Button - Way Up Top & Centered */}
       <button
         onClick={handleAuth}
         className="btn-hover-dark"
         style={{
-          position: 'fixed',
-          top: '2rem',
-          left: '2rem',
+          position: 'absolute',
+          top: '3.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
           background: 'rgba(255, 255, 255, 0.1)',
           border: '1px solid rgba(255, 255, 255, 0.2)',
           color: 'white',
-          height: '45px',
-          width: '240px',
+          height: '40px',
           padding: '0 1.25rem',
           borderRadius: '1rem',
           cursor: 'pointer',
@@ -137,13 +138,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, sessionId }) 
           alignItems: 'center',
           justifyContent: 'center',
           gap: '0.75rem',
-          fontSize: '0.9rem',
-          fontWeight: 900,
-          letterSpacing: '0.1em',
+          fontSize: '0.75rem',
+          fontWeight: 800,
+          letterSpacing: '0.05em',
           backdropFilter: 'blur(12px)',
-          zIndex: 1000,
           textTransform: 'uppercase',
-          transition: 'none'
+          transition: 'none',
+          zIndex: 1000
         }}
       >
         {user ? (
@@ -193,6 +194,50 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, sessionId }) 
           />
         </div>
       </motion.div>
+
+      {/* Twitch Button - Way Down Bottom & Centered */}
+      <a
+        href="https://twitch.tv/muchomovimiento"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn-hover-dark"
+        style={{
+          position: 'fixed',
+          bottom: '4.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(145, 70, 255, 0.2)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(145, 70, 255, 0.3)',
+          color: 'white',
+          height: '40px',
+          padding: '0 1.25rem',
+          borderRadius: '1rem',
+          textDecoration: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+          fontSize: '0.75rem',
+          fontWeight: 800,
+          letterSpacing: '0.05em',
+          zIndex: 1000,
+          textTransform: 'uppercase'
+        }}
+      >
+        <svg 
+          width="16" 
+          height="16" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m5 4V7"/>
+        </svg>
+        MUCHOMOVIMIENTO
+      </a>
 
       {/* Point Selection Modal */}
       <AnimatePresence>
