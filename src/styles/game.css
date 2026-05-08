@@ -1,0 +1,145 @@
+/* Game Layout & Wrappers */
+.player-hand-container {
+  min-height: 280px;
+}
+
+.game-actions-wrapper {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Responsive Scoreboard */
+@media (max-width: 1024px), (max-height: 700px) {
+  .game-scoreboard-wrapper {
+    position: fixed;
+    top: 1rem;
+    left: 0;
+    right: 0;
+    width: fit-content;
+    margin: 0 auto;
+    transform: none !important;
+    z-index: 2500;
+  }
+
+  .game-scoreboard-wrapper .scoreboard {
+    padding: 0.5rem 1rem;
+    gap: 1rem;
+    border-width: 2px;
+    flex-direction: row !important;
+  }
+  
+  .game-scoreboard-wrapper .scoreboard-value {
+    font-size: 1.5rem;
+  }
+  
+  .game-scoreboard-wrapper .scoreboard-label {
+    font-size: 0.6rem;
+  }
+  
+  .game-scoreboard-wrapper .text-digital:nth-child(2) {
+    display: block !important;
+  }
+}
+
+@media (min-width: 1025px) and (min-height: 701px) {
+  .game-scoreboard-wrapper {
+    position: fixed;
+    top: 50%;
+    right: 2.25rem;
+    transform: translateY(-50%);
+    z-index: 2500;
+  }
+
+  .scoreboard {
+    flex-direction: column !important;
+    padding: 2rem 1.5rem !important;
+    gap: 2rem !important;
+    min-width: 150px;
+  }
+  
+  .scoreboard > .text-digital:not(.scoreboard-value) {
+    display: none;
+  }
+
+  .scoreboard-value {
+    font-size: 4rem !important;
+  }
+
+  .scoreboard-label {
+    font-size: 1rem !important;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* Fixed Navigation Elements */
+.home-btn-fixed {
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 2000;
+}
+
+.points-indicator-fixed {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  z-index: 2000;
+}
+
+.twitch-btn {
+  display: flex;
+}
+
+/* Mobile Overrides for Navigation */
+@media (max-width: 768px) {
+  .home-btn-fixed {
+    top: auto;
+    bottom: 1.5rem;
+    left: 1.5rem;
+  }
+
+  .points-indicator-fixed {
+    left: auto;
+    right: 1.5rem;
+    bottom: 1.5rem;
+  }
+
+  .twitch-btn {
+    display: none !important;
+  }
+
+  .player-hand-container { min-height: 120px; }
+  .game-mode-secondary-row { flex-direction: column !important; }
+}
+
+@media (max-width: 480px) {
+  .player-hand-container { min-height: 80px; }
+}
+
+/* Sidebar Info (Desktop Only) */
+.sidebar-help {
+  width: 280px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 1.25rem;
+  color: rgba(255, 255, 255, 0.85);
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.sidebar-left { left: 1.5rem; }
+.sidebar-right { right: 1.5rem; }
+
+@media (max-width: 1300px) {
+  .sidebar-help { display: none; }
+}

@@ -52,7 +52,7 @@ export const RankingSidebar = () => {
   });
 
   return (
-    <div className="sidebar-help sidebar-left">
+    <>
       <h3 className="text-display" style={{ color: 'var(--color-accent)', fontSize: '0.9rem', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
         RANKING DE LAS CARTAS
       </h3>
@@ -150,6 +150,6 @@ export const RankingSidebar = () => {
       <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: '0.75rem' }}>
         Tu voto mueve el ranking · se guarda localmente
       </p>
-    </div>
+    </>
   );
 };

@@ -4,9 +4,10 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  showClose?: boolean;
 }
 
-export const Modal: React.FC<ModalProps> = ({ open, onClose, children }) => {
+export const Modal: React.FC<ModalProps> = ({ open, onClose, children, showClose = true }) => {
   if (!open) return null;
   return (
     <div
@@ -28,7 +29,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, children }) => {
         style={{
           background: "#181818",
           borderRadius: 16,
-          padding: "2.5rem 2.5rem 2rem 2.5rem",
+          padding: "1rem 2.5rem 2rem 2.5rem",
           minWidth: 320,
           maxWidth: "90vw",
           boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
@@ -38,23 +39,25 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, children }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {children}
-        <button
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 16,
-            background: "none",
-            border: "none",
-            color: "#fff",
-            fontSize: 24,
-            cursor: "pointer",
-            opacity: 0.7,
-          }}
-          onClick={onClose}
-          aria-label="Close"
-        >
-          ×
-        </button>
+        {showClose && (
+          <button
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 16,
+              background: "none",
+              border: "none",
+              color: "#fff",
+              fontSize: 24,
+              cursor: "pointer",
+              opacity: 0.7,
+            }}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        )}
       </div>
     </div>
   );
