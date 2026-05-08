@@ -38,8 +38,8 @@ export const Sticker: React.FC<StickerProps> = ({
       style={{
         cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.6 : 1,
-        borderColor: winnerMode ? "#ffdf00" : (card.id === "messi" ? "#a855f7" : "#fff"),
-        boxShadow: winnerMode ? "0 0 20px rgba(255, 223, 0, 0.4)" : (card.id === "messi" ? "0 0 25px rgba(168, 85, 247, 0.9)" : undefined),
+        borderColor: winnerMode ? "#ffdf00" : (card.id.startsWith("messi") || card.id.startsWith("mbappe") ? "#a855f7" : "#fff"),
+        boxShadow: winnerMode ? "0 0 20px rgba(255, 223, 0, 0.4)" : (card.id.startsWith("messi") || card.id.startsWith("mbappe") ? "0 0 25px rgba(168, 85, 247, 0.9)" : undefined),
       }}
     >
       <div className="sticker-glitter"></div>

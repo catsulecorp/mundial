@@ -1,6 +1,10 @@
 import React from 'react';
 
-export const InstructionsPanel: React.FC = () => {
+interface InstructionsPanelProps {
+  maxPoints?: number;
+}
+
+export const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ maxPoints = 30 }) => {
   return (
     <>
       <h3
@@ -72,12 +76,12 @@ export const InstructionsPanel: React.FC = () => {
                 marginBottom: "0.2rem",
               }}
             >
-              Ej: Messi (ARG·10) + Yamal (ESP·19) + Haaland (NOR·9)
+              Ej: MESSI (ARG·10) + DIBU (ARG·23)
             </p>
             <p>
-              → Sin matches de país ni club: solo el más alto cuenta →{" "}
+              → Misma Selección (ARG): Sumás ambos + 20 →{" "}
               <strong style={{ color: "var(--color-primary)" }}>
-                19
+                33
               </strong>
             </p>
             <p
@@ -88,7 +92,7 @@ export const InstructionsPanel: React.FC = () => {
                 marginTop: "0.5rem",
               }}
             >
-              Ej: CR7 (POR·7) + Mbappé (FRA·10) + Neymar (BRA·10)
+              Ej: MESSI (ARG·10) + MBAPPÉ (FRA·10)
             </p>
             <p>
               → Sin matches de país ni club: solo el más alto cuenta →{" "}
@@ -109,7 +113,7 @@ export const InstructionsPanel: React.FC = () => {
             AL MAZO
           </p>
           <p>
-            Retirarse de la mano. El rival gana 2 pts si fue en la 1ra ronda, 1 pt después.
+            Retirarse de la mano. El rival gana los puntos que se estaban jugando.
           </p>
         </div>
         <div>
@@ -123,7 +127,7 @@ export const InstructionsPanel: React.FC = () => {
             FINAL DEL JUEGO
           </p>
           <p>
-            <strong style={{ color: 'var(--color-accent)' }}>El primero en llegar a 30 puntos gana la partida.</strong> ¡A jugar otra vez desde el modal!
+            <strong style={{ color: 'var(--color-accent)' }}>El primero en llegar a {maxPoints} puntos gana la partida.</strong>
           </p>
         </div>
       </div>

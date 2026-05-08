@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
+import { CARDS } from '../../../data/cards';
 
-const BASE_PLAYERS = [
-  { id: 'messi',   rank: 1, name: 'Lionel Messi',      country: 'Argentina', club: 'Inter Miami CF', baseVotes: 248 },
-  { id: 'cr7',     rank: 2, name: 'Cristiano Ronaldo', country: 'Portugal',  club: 'Al Nassr',       baseVotes: 189 },
-  { id: 'mbappe',  rank: 3, name: 'Kylian Mbappé',     country: 'Francia',   club: 'Real Madrid',    baseVotes: 134 },
-  { id: 'yamal',   rank: 4, name: 'Lamine Yamal',      country: 'España',    club: 'FC Barcelona',   baseVotes: 97  },
-  { id: 'neymar',  rank: 5, name: 'Neymar Jr',         country: 'Brasil',    club: 'Al Hilal',       baseVotes: 72  },
-  { id: 'haaland', rank: 6, name: 'Erling Haaland',    country: 'Noruega',   club: 'Man City',       baseVotes: 61  },
-];
+const BASE_PLAYERS = CARDS.map(card => ({
+  id: card.id,
+  name: card.name,
+  country: card.country,
+  club: card.club,
+  // We calculate a reasonable base vote count based on their truco power
+  baseVotes: (40 - card.power) * 5 
+}));
 
 const STORAGE_KEY = 'mundial-user-votes-v2';
 
@@ -77,7 +78,16 @@ export const RankingSidebar = () => {
         }}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '0.5rem', 
+        maxHeight: '420px', 
+        overflowY: 'auto',
+        paddingRight: '6px',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgba(255,255,255,0.2) transparent'
+      }}>
         {filtered.length === 0 && (
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', textAlign: 'center' }}>Sin resultados</p>
         )}

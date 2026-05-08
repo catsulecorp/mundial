@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { RankingSidebar } from './RankingSidebar';
 import { InstructionsPanel } from './InstructionsPanel';
 
-export const GameSidebar: React.FC = () => {
+interface GameSidebarProps {
+  maxPoints?: number;
+}
+
+export const GameSidebar: React.FC<GameSidebarProps> = ({ maxPoints = 30 }) => {
   const [activeTab, setActiveTab] = useState<'ranking' | 'rules'>('rules');
 
   return (
@@ -55,7 +59,7 @@ export const GameSidebar: React.FC = () => {
 
       {/* Content */}
       <div style={{ height: "100%", overflowY: "auto" }}>
-        {activeTab === 'rules' ? <InstructionsPanel /> : <RankingSidebar />}
+        {activeTab === 'rules' ? <InstructionsPanel maxPoints={maxPoints} /> : <RankingSidebar />}
       </div>
     </div>
   );

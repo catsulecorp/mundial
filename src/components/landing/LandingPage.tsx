@@ -197,7 +197,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, sessionId }) 
 
       {/* Twitch Button - Way Down Bottom & Centered */}
       <a
-        href="https://twitch.tv/muchomovimiento"
+        href="https://twitch.tv/muchomovimiento/videos"
         target="_blank"
         rel="noopener noreferrer"
         className="btn-hover-dark"
@@ -224,17 +224,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, sessionId }) 
           textTransform: 'uppercase'
         }}
       >
-        <svg 
-          width="16" 
-          height="16" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m5 4V7"/>
+          <path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m5 4V7" />
         </svg>
         MUCHOMOVIMIENTO
       </a>

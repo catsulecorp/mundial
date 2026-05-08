@@ -110,7 +110,7 @@ export const TrucoGameView: React.FC<TrucoGameViewProps> = ({
         />
       </div>
 
-      {gameMode !== "2v2" && <GameSidebar />}
+      {gameMode !== "2v2" && <GameSidebar maxPoints={maxPoints} />}
 
       <div style={{
         display: "flex",

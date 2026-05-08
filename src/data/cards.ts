@@ -6,21 +6,39 @@ export interface Card {
   image: string;
   country: string;
   club: string;
+  stickerNumber: string;
 }
 
 
 export const CARDS: Card[] = [
-  // Truco Hierarchy (Lower is better)
-  { id: 'messi', name: 'LIONEL MESSI', power: 1, env: 10, country: 'Argentina', club: 'Inter Miami', image: '/figu-de-messi.png' },
-  { id: 'cr7', name: 'C. Ronaldo', power: 2, env: 7, country: 'Portugal', club: 'Al Nassr', image: '/figu-de-cristiano.png' },
-  { id: 'neymar', name: 'Neymar Jr', power: 5, env: 10, country: 'Brasil', club: 'Al Hilal', image: '/figu-de-neymar.png' },
-  { id: 'mbappe', name: 'K. Mbappé', power: 3, env: 10, country: 'Francia', club: 'Real Madrid', image: '/figu-de-mbappe.png' },
-  { id: 'haaland', name: 'E. Haaland', power: 6, env: 9, country: 'Noruega', club: 'Man City', image: '/figu-de-haaland.png' },
-  { id: 'yamal', name: 'L. Yamal', power: 4, env: 19, country: 'España', club: 'FC Barcelona', image: '/figu-de-yamal.png' },
-  { id: 'dibu', name: 'D. Martínez', power: 7, env: 11, country: 'Argentina', club: 'Aston Villa', image: '/figu-de-messi.png' },
-  { id: 'vini', name: 'Vinícius Jr', power: 8, env: 12, country: 'Brasil', club: 'Real Madrid', image: '/figu-de-neymar.png' },
-  { id: 'modric', name: 'L. Modric', power: 9, env: 10, country: 'Croacia', club: 'Real Madrid', image: '/figu-de-cristiano.png' },
-  { id: 'kdb', name: 'K. De Bruyne', power: 10, env: 11, country: 'Bélgica', club: 'Man City', image: '/figu-de-haaland.png' },
-  { id: 'lewa', name: 'R. Lewandowski', power: 11, env: 12, country: 'Polonia', club: 'FC Barcelona', image: '/figu-de-mbappe.png' },
-  { id: 'dimaria', name: 'A. Di María', power: 12, env: 10, country: 'Argentina', club: 'Benfica', image: '/figu-de-messi.png' },
+  { id: 'messi', name: 'MESSI', power: 1, env: 10, country: 'Argentina', club: 'Inter Miami', image: '/stickers/argentina/figu-de-messi.png', stickerNumber: 'ARG 9' },
+  { id: 'mbappe', name: 'MBAPPÉ', power: 2, env: 10, country: 'Francia', club: 'Real Madrid', image: '/stickers/france/figu-de-mbappe.png', stickerNumber: 'FRA 8' },
+  { id: 'julian', name: 'JULIÁN Á.', power: 3, env: 9, country: 'Argentina', club: 'Atlético Madrid', image: '/stickers/argentina/figu-de-julian-alvarez.png', stickerNumber: 'ARG 8' },
+  { id: 'lautaro', name: 'TORO M.', power: 4, env: 2, country: 'Argentina', club: 'Inter Milan', image: '/stickers/argentina/figu-del-toro-martinez.png', stickerNumber: 'ARG 11' },
+  { id: 'dibu', name: 'DIBU MARTÍNEZ', power: 5, env: 23, country: 'Argentina', club: 'Aston Villa', image: '/stickers/argentina/figu-del-dibu.png', stickerNumber: 'ARG 1' },
+  { id: 'dembele', name: 'DEMBÉLÉ', power: 6, env: 11, country: 'Francia', club: 'PSG', image: '/stickers/france/figu-de-dembele.png', stickerNumber: 'FRA 7' },
+  { id: 'enzo', name: 'ENZO F.', power: 7, env: 4, country: 'Argentina', club: 'Chelsea', image: '/stickers/argentina/figu-de-enzo-fernandez.png', stickerNumber: 'ARG 5' },
+  { id: 'depaul', name: 'DE PAUL', power: 8, env: 7, country: 'Argentina', club: 'Atlético Madrid', image: '/stickers/argentina/figu-de-de-paul.png', stickerNumber: 'ARG 7' },
+  { id: 'macallister', name: 'MAC ALLISTER', power: 9, env: 0, country: 'Argentina', club: 'Liverpool', image: '/stickers/argentina/figu-de-mac-allister.png', stickerNumber: 'ARG 6' },
+  { id: 'romero', name: 'CUTI ROMERO', power: 10, env: 10, country: 'Argentina', club: 'Tottenham', image: '/stickers/argentina/figu-del-cuti.png', stickerNumber: 'ARG 3' },
+  { id: 'otamendi', name: 'OTAMENDI', power: 11, env: 12, country: 'Argentina', club: 'Benfica', image: '/stickers/argentina/figu-de-otamendi.png', stickerNumber: 'ARG 4' },
+  { id: 'molina', name: 'NAHUEL M.', power: 12, env: 8, country: 'Argentina', club: 'Atlético Madrid', image: '/stickers/argentina/figu-de-nahuel-molina.png', stickerNumber: 'ARG 2' },
+  { id: 'simeone', name: 'SIMEONE', power: 13, env: 6, country: 'Argentina', club: 'Atlético Madrid', image: '/stickers/argentina/figu-de-giuliano-simeone.png', stickerNumber: 'ARG 10' },
+  { id: 'maignan', name: 'MIKE MAIGNAN', power: 14, env: 10, country: 'Francia', club: 'AC Milan', image: '/stickers/france/figu-de-maignan.png', stickerNumber: 'FRA 1' },
+  { id: 'upamecano', name: 'UPAMECANO', power: 15, env: 5, country: 'Francia', club: 'Bayern Munich', image: '/stickers/france/figu-de-upamecano.png', stickerNumber: 'FRA 4' },
+  { id: 'saliba', name: 'SALIBA', power: 16, env: 7, country: 'Francia', club: 'Arsenal', image: '/stickers/france/figu-de-saliba.png', stickerNumber: 'FRA 2' },
+  { id: 'theo', name: 'HERNÁNDEZ', power: 17, env: 8, country: 'Francia', club: 'AC Milan', image: '/stickers/france/figu-de-hernandez.png', stickerNumber: 'FRA 4' },
+  { id: 'tchouameni', name: 'TCHOUAMÉNI', power: 18, env: 8, country: 'Francia', club: 'Real Madrid', image: '/stickers/france/figu-de-tchouameni.png', stickerNumber: 'FRA 5' },
+  { id: 'camavinga', name: 'CAMAVINGA', power: 19, env: 6, country: 'Francia', club: 'Real Madrid', image: '/stickers/france/figu-de-camavigna.png', stickerNumber: 'FRA 6' },
+  { id: 'dembele', name: 'DEMBÉLÉ', power: 6, env: 11, country: 'Francia', club: 'PSG', image: '/stickers/france/figu-de-dembele.png', stickerNumber: 'FRA 7' },
+  { id: 'mbappe', name: 'MBAPPÉ', power: 2, env: 10, country: 'Francia', club: 'Real Madrid', image: '/stickers/france/figu-de-mbappe.png', stickerNumber: 'FRA 8' },
+  { id: 'barcola', name: 'BARCOLA', power: 20, env: 9, country: 'Francia', club: 'PSG', image: '/stickers/france/figu-de-barcola.png', stickerNumber: 'FRA 9' },
+  { id: 'doue', name: 'DÉSIRÉ DOUÉ', power: 21, env: 7, country: 'Francia', club: 'PSG', image: '/stickers/france/figu-de-doue.png', stickerNumber: 'FRA 10' },
+  { id: 'ekitike', name: 'HUGO EKITIKÉ', power: 22, env: 6, country: 'Francia', club: 'Eintracht Frankfurt', image: '/stickers/france/figu-de-ekitike.png', stickerNumber: 'FRA 11' },
+
+  // Other Global Stars
+  // { id: 'cr7', name: 'CR7', power: 00, env: 7, country: 'Portugal', club: 'Al Nassr', image: '/figu-de-cr7.png', stickerNumber: 'POR 00' },
+  // { id: 'yamal', name: 'LAMINE YAMAL', power: 00, env: 19, country: 'España', club: 'FC Barcelona', image: '/figu-de-yamal.png', stickerNumber: 'ESP 00' },
+  // { id: 'neymar', name: 'NEYMAR JR', power: 00, env: 10, country: 'Brasil', club: 'Al Hilal', image: '/figu-de-neymar.png', stickerNumber: 'BRA 00' },
+  // { id: 'haaland', name: 'E. HAALAND', power: 00, env: 9, country: 'Noruega', club: 'Man City', image: '/figu-de-haaland.png', stickerNumber: 'NOR 00' },
 ];

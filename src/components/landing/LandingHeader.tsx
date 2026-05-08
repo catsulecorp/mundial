@@ -24,7 +24,7 @@ export const LandingHeader: React.FC<LandingHeaderProps> = ({ user }) => {
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         style={{ flexShrink: 0, transform: 'scale(0.8)', originX: 0.5, originY: 0.5 }}
       >
-        <Sticker card={CARDS[0]} disabled />
+        <Sticker card={CARDS.find(c => c.id === 'messi') || CARDS[0]} disabled />
       </motion.div>
 
       {/* Title + Pill (Right Column) */}
