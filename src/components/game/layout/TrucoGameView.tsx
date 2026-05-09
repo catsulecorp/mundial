@@ -54,6 +54,8 @@ export const TrucoGameView: React.FC<TrucoGameViewProps> = ({
   onExitRequest, onRestartGame, onPlayCard, onHandleCall, onHandleResponse, onHandleMazo,
   onCloseExit, onConfirmExit
 }) => {
+  console.log("TrucoGameView rendering with rivalName:", rivalName);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -104,7 +106,7 @@ export const TrucoGameView: React.FC<TrucoGameViewProps> = ({
         <Scoreboard
           scoreA={score.cpu}
           scoreB={score.player}
-          labelA={gameMode === "multiplayer" ? (rivalName || "RIVAL").toUpperCase() : "CPU"}
+          labelA={(rivalName || (gameMode === "multiplayer" ? "RIVAL" : "CPU")).toUpperCase()}
           labelB={user ? (user.user_metadata.full_name?.split(' ')[0] || user.user_metadata.name?.split(' ')[0] || user.email.split('@')[0]).toUpperCase() : "VOS"}
           popups={scorePopups}
         />

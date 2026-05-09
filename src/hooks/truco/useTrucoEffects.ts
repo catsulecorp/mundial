@@ -76,15 +76,18 @@ export const useTrucoEffects = (state: any, logic: any) => {
           setShowCountdown(true);
           clearRoundData();
           if (winningCard) setRoundWinningCardId(winningCard.id);
-          const points = trucoState.level + 1;
-          addPoints(roundWinner, points);
           
-          // Synchronize reset and unlock with "VAMO' A JUGÁ!" (3s)
-          setTimeout(() => {
-            resetRound();
-            setIsRoundEnding(false);
-            setIsCooldown(false);
-          }, 3000);
+          if (gameMode !== "multiplayer") {
+            const points = trucoState.level + 1;
+            addPoints(roundWinner, points);
+            
+            // Synchronize reset and unlock with "VAMO' A JUGÁ!" (3s)
+            setTimeout(() => {
+              resetRound();
+              setIsRoundEnding(false);
+              setIsCooldown(false);
+            }, 3000);
+          }
           
           // Clear visual countdown message shortly after (4s)
           setTimeout(() => {

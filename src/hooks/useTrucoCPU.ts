@@ -21,8 +21,6 @@ interface UseTrucoCPUProps {
   playCard: (card: Card) => void;
   handleCall: (type: "truco" | "envido", level: number, caller: PlayerRole) => void;
   handleResponse: (accept: boolean) => void;
-  handleMazo: (isRemote: boolean) => void;
-  triggerCall: (text: string, color: string) => void;
 }
 
 export const useTrucoCPU = ({
@@ -43,9 +41,7 @@ export const useTrucoCPU = ({
   setIsCpuThinking,
   playCard,
   handleCall,
-  handleResponse,
-  handleMazo,
-  triggerCall
+  handleResponse
 }: UseTrucoCPUProps) => {
   const cpuMoveTimeoutRef = useRef<any>(null);
 
@@ -78,34 +74,35 @@ export const useTrucoCPU = ({
       if (cpuMoveTimeoutRef.current) clearTimeout(cpuMoveTimeoutRef.current);
       
       cpuMoveTimeoutRef.current = setTimeout(() => {
-        const dice = Math.random();
-        // Random CPU calls logic
-        if (dice < 0) { // Disabled for debugging
-          triggerCall("¡ME VOY AL MAZO!", "var(--color-secondary)");
-          handleMazo(true); 
+        // Double check turn and activity after timeout to avoid race conditions
+        const freshIsActionActive = pendingAction !== null || isRoundEnding || isCooldown;
+        const freshIsCpuTurn = whoseTurn === "cpu" || whoseTurn === "partner" || whoseTurn === "cpu2";
+        if (!freshIsCpuTurn || freshIsActionActive) {
           setIsCpuThinking(false);
-          return; 
+          return;
         }
+
+        const dice = Math.random();
         
         // 1. CPU Escalates Truco if it has the right
         const canCPUCallTruco = trucoState.status === "none" || 
                                 (trucoState.status === "accepted" && (trucoState.caller === "player" || trucoState.caller === "partner"));
 
-        if (dice < 0.08 && !pendingAction && canCPUCallTruco && trucoState.level < 3) { 
+        if (dice < 0.12 && canCPUCallTruco && trucoState.level < 3) { 
           const nextLevel = trucoState.level + 1;
           handleCall("truco", nextLevel, whoseTurn as PlayerRole); 
           setIsCpuThinking(false);
-          return;
+          return; // STOP HERE. Don't play a card if we called truco.
         }
 
         // 2. CPU Calls Envido (only if nothing played and no truco pending)
-        if (dice < 0.15 && !pendingAction && envidoState.status === "none" && playedCards.length === 0) {
+        if (dice < 0.18 && envidoState.status === "none" && playedCards.length === 0) {
           handleCall("envido", 1, whoseTurn as PlayerRole);
           setIsCpuThinking(false);
-          return;
+          return; // STOP HERE.
         }
 
-        // Play a random card from the correct hand
+        // 3. Play a card (only if we didn't call anything above)
         let currentHand: Card[] = [];
         if (whoseTurn === "cpu") currentHand = cpuHandRef.current;
         else if (whoseTurn === "partner") currentHand = cpuPartnerHandRef.current;
@@ -123,7 +120,7 @@ export const useTrucoCPU = ({
           playCard(cardToPlay);
         }
         setIsCpuThinking(false);
-      }, 1500 + Math.random() * 1000);
+      }, 2000 + Math.random() * 1000); // Increased delay for more human-like pacing
     }
   }, [gameState, gameMode, playedCards.length, handWinners.length, pendingAction, isRoundEnding, isCooldown, whoseTurn, isCpuThinking, trucoState, envidoState]);
 };

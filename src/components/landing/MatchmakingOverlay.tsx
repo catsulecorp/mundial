@@ -11,6 +11,7 @@ interface MatchmakingOverlayProps {
   userName: string;
   onCancel: () => void;
   formatTime: (seconds: number) => string;
+  roomCode?: string;
 }
 
 export const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({
@@ -20,7 +21,8 @@ export const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({
   rivalData,
   userName,
   onCancel,
-  formatTime
+  formatTime,
+  roomCode
 }) => {
   return (
     <AnimatePresence>
@@ -110,8 +112,25 @@ export const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({
                   </h2>
                   
                   <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
-                    Esperando a que otro jugador se conecte.
+                    {roomCode ? "Comparte este código con tu amigo:" : "Esperando a que otro jugador se conecte."}
                   </p>
+                  
+                  {roomCode && (
+                    <div style={{
+                      background: 'rgba(0, 242, 255, 0.1)',
+                      border: '2px dashed #00f2ff',
+                      borderRadius: '1rem',
+                      padding: '1rem 2rem',
+                      margin: '1rem 0',
+                      fontSize: '3rem',
+                      fontWeight: 950,
+                      color: '#00f2ff',
+                      letterSpacing: '0.5rem'
+                    }}>
+                      {roomCode}
+                    </div>
+                  )}
+
                   <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem', color: 'var(--color-accent)', fontStyle: 'italic', opacity: 0.8 }}>
                     ¡Andá preparando el mate!
                   </p>

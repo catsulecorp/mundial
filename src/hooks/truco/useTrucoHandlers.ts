@@ -5,7 +5,7 @@ import type { PlayerRole } from "../../lib/truco/types";
 export const useTrucoHandlers = (state: any, logic: any) => {
   const {
     setPlayerHand, setPlayedCards, setTrucoState, setEnvidoState, setPendingAction, setSuspendedTruco, setIsRoundEnding, setIsCooldown, setActiveCall,
-    isRoundEnding, isCooldown, pendingAction, trucoState, envidoState, suspendedTruco
+    isRoundEnding, isCooldown, pendingAction, trucoState, envidoState, suspendedTruco, gameMode
   } = state;
   const { triggerCall, addPoints, resetRound, resolveEnvido } = logic;
 
@@ -17,7 +17,9 @@ export const useTrucoHandlers = (state: any, logic: any) => {
       : (trucoState.level + 1 + (envidoState.status === "none" || envidoState.status === "pending" ? 1 : 0));
     addPoints(win, pts);
     setIsRoundEnding(true);
-    setTimeout(() => resetRound(), 3500);
+    if (gameMode !== "multiplayer") {
+      setTimeout(() => resetRound(), 3500);
+    }
   }, [trucoState.level, envidoState.status, triggerCall, addPoints, setIsRoundEnding, resetRound]);
 
   const playCard = useCallback((card: Card) => {
@@ -79,7 +81,9 @@ export const useTrucoHandlers = (state: any, logic: any) => {
       addPoints(resp === "player" ? "cpu" : "player", pts);
       if (pendingAction.type === "truco") {
         setIsRoundEnding(true);
-        setTimeout(() => resetRound(), 3500);
+        if (gameMode !== "multiplayer") {
+          setTimeout(() => resetRound(), 3500);
+        }
       }
       else {
         setEnvidoState((prev: any) => ({ ...prev, status: "finished" }));

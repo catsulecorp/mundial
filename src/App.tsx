@@ -11,6 +11,8 @@ function App() {
   const [user, setUser] = useState<any>(null);
   const [sessionId] = useState(() => `sess_${Math.random().toString(36).substr(2, 9)}`);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [currentRoomCode, setCurrentRoomCode] = useState<string | null>(null);
+  const [isCreator, setIsCreator] = useState(false);
 
   const syncRef = useRef<((data: any) => void) | null>(null);
 
@@ -19,21 +21,26 @@ function App() {
   }, []);
 
   const core = useTrucoGame(sessionId, stableHandleSync);
-  const isHost = sessionId && core.rivalId ? sessionId < core.rivalId : false;
+  const actualIsHost = currentRoomCode ? isCreator : (sessionId && core.rivalId ? sessionId < core.rivalId : false);
 
-  const { broadcastMove } = useMatchmaking({
-    sessionId, user, gameMode: core.gameMode, rivalId: core.rivalId, isHost, gameState: core.gameState,
+  const { broadcastMove, cleanupMatch } = useMatchmaking({
+    sessionId, user, gameMode: core.gameMode, rivalId: core.rivalId, 
+    isHost: actualIsHost, 
+    matchId: currentRoomCode, // Use the room code as match identifier
+    gameState: core.gameState,
     playerHand: core.playerHand, playedCards: core.playedCards, starterIdx: core.starterIdx,
-    playerHandRef: core.playerHandRef, cpuHandRef: core.cpuHandRef, isRoundEnding: core.isRoundEnding,
+    cpuHandRef: core.cpuHandRef, isRoundEnding: core.isRoundEnding, isGameStarting: core.isGameStarting,
     setGameState: core.setGameState, setRivalName: core.setRivalName, resetRound: core.resetRound,
     playCardRemote: core.playCardRemote, wrappedHandleCall: (t, l, c, r) => wrappedHandleCall(t, l, c, r),
     wrappedHandleResponse: (w, r) => wrappedHandleResponse(w, r),
-    handleMazo: core.handleMazo, setScore: core.setScore, score: core.score
+    handleMazo: core.handleMazo, setScore: core.setScore, score: core.score,
+    setIsGameStarting: core.setIsGameStarting, setShowCountdown: core.setShowCountdown,
+    setMaxPoints: core.setMaxPoints
   });
 
   useEffect(() => {
     syncRef.current = (data: any) => {
-      if (core.gameMode === "multiplayer" && isHost) {
+      if (core.gameMode === "multiplayer" && actualIsHost) {
         broadcastMove({
           type: 'sync',
           playerHand: data.playerHand,
@@ -42,7 +49,7 @@ function App() {
         });
       }
     };
-  }, [core.gameMode, isHost, broadcastMove]);
+  }, [core.gameMode, actualIsHost, broadcastMove]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -83,17 +90,48 @@ function App() {
     }
   };
 
-  const startGameWithSync = (mode: GameMode, points: number, rName?: string, rId?: string) => {
-    const syncData = core.startGame(mode, rName || "CPU", rId || "", points);
-    if (mode === "multiplayer" && isHost && syncData) {
-      broadcastMove({ type: 'sync', starter: syncData.starter, playerHand: syncData.playerHand, cpuHand: syncData.cpuHand });
-      setTimeout(() => {
-        broadcastMove({ type: 'sync', starter: syncData.starter, playerHand: syncData.playerHand, cpuHand: syncData.cpuHand });
-      }, 1000);
+  const startGameWithSync = (mode: GameMode, points: number, rName?: string, rId?: string, isCreatorFlag?: boolean, roomCode?: string) => {
+    const isHostForThisMatch = mode === "multiplayer" ? (isCreatorFlag || false) : false;
+    setIsCreator(isHostForThisMatch);
+    setCurrentRoomCode(roomCode || null);
+    
+    if (mode === "multiplayer") {
+      if (isHostForThisMatch) {
+        console.log("SOY EL HOST (Argentina). Generando partida...");
+        const syncData = core.startGame(mode, rName || "RIVAL", rId || "", points);
+        if (syncData) {
+        setTimeout(() => {
+          console.log("Host enviando cartas iniciales vía broadcastMove...", roomCode);
+          broadcastMove({ 
+            type: 'sync', 
+            starter: syncData.starter, 
+            playerHand: syncData.playerHand, 
+            cpuHand: syncData.cpuHand,
+            maxPoints: points,
+            senderId: sessionId,
+            senderName: user?.user_metadata?.full_name?.split(' ')[0] || "HOST"
+          }, roomCode);
+        }, 1000);
+        }
+      } else {
+        console.log("SOY EL INVITADO (Francia). Pasando al tablero, esperando sync del Host...");
+        // Guest MUST set "playing" to see the board, but doesn't startGame()
+        core.setGameMode(mode);
+        core.setRivalId(rId || "");
+        core.setRivalName(rName || "RIVAL");
+        core.setMaxPoints(points);
+        core.setGameState("playing"); 
+        core.setIsGameStarting(true);
+        core.setShowCountdown(true);
+      }
+    } else {
+      // Local modes
+      core.startGame(mode, rName || "CPU", rId || "", points);
     }
   };
 
   const handleConfirmExit = () => {
+    cleanupMatch(); // Clean up the Supabase record
     setShowExitModal(false);
     core.setWinnerModal(null);
     core.handleRestartGame();
@@ -111,6 +149,7 @@ function App() {
             key="game"
             user={user}
             {...core}
+            rivalName={core.rivalName}
             showExitModal={showExitModal}
             onExitRequest={() => setShowExitModal(true)}
             onRestartGame={core.handleRestartGame}

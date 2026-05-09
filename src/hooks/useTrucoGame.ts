@@ -43,9 +43,7 @@ export function useTrucoGame(sessionId: string | undefined, onSync?: (data: any)
       else if (owner === "cpu2") core.setCpuOpponent2HandCount(prev => Math.max(0, prev - 1));
     },
     handleCall: (type, level, caller) => core.handleCall(type, level, caller),
-    handleResponse: (accept) => core.handleResponse(accept, true),
-    handleMazo: (isRemote) => core.handleMazo(isRemote),
-    triggerCall: core.triggerCall
+    handleResponse: (accept) => core.handleResponse(accept, true)
   });
 
   const startGame = useCallback((mode: GameMode, _rName: string, rId: string, points: number) => {
@@ -61,16 +59,15 @@ export function useTrucoGame(sessionId: string | undefined, onSync?: (data: any)
     // Generate data immediately to return it for sync
     const data = core.generateRoundData();
     
-    // Synchronize visual application and unlock with "VAMO' A JUGÁ!" (3s)
+    // In multiplayer, we wait for the "ready" handshake from the guest.
+    // In local mode, we start automatically after 2s.
     setTimeout(() => {
       core.applyRoundData(data);
-      core.setIsGameStarting(false);
-    }, 3000);
-
-    // Hide countdown after message is seen (4s)
-    setTimeout(() => {
-      core.setShowCountdown(false);
-    }, 4000);
+      if (mode !== "multiplayer") {
+        core.setIsGameStarting(false);
+        core.setShowCountdown(false);
+      }
+    }, 2000);
 
     if (onSync && data) onSync(data);
     return data;
@@ -80,7 +77,6 @@ export function useTrucoGame(sessionId: string | undefined, onSync?: (data: any)
     ...core,
     startGame,
     isCpuThinking: false,
-    rivalName: core.gameMode === "multiplayer" ? "RIVAL" : "CPU",
     scorePopups: core.scorePopups,
     handleRestartGame: () => core.resetRound(),
     playCardRemote: (card: Card, owner: PlayerRole) => {
