@@ -24,15 +24,15 @@ export const GameModals: React.FC<GameModalsProps> = ({
   console.log("[MODALS] Winner Modal Status:", winnerModal);
   return (
     <>
-      <Modal open={!!winnerModal} onClose={() => {}} showClose={false}>
+      <Modal open={!!winnerModal} onClose={() => { }} showClose={false}>
         <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
           <h2 className="text-display" style={{ fontSize: "3.5rem", color: winnerModal === "player" ? "#00f2ff" : "var(--color-secondary)", marginBottom: 12, lineHeight: 1.2, marginTop: 10 }}>
-            {winnerModal === "player" ? "¡GANASTE!" : "¡GANÓ LA CPU!"}
+            {winnerModal === "player" ? "¡GANASTE!" : "PERDISTE..."}
           </h2>
-          <Button 
-            variant="white" 
+          <Button
+            variant="white"
             className="btn-hover-dark"
-            style={{ fontSize: "1.2rem", padding: "0.8rem 3rem", fontWeight: 800 }} 
+            style={{ fontSize: "1.2rem", padding: "0.8rem 3rem", fontWeight: 800 }}
             onClick={onConfirmExit}
           >
             VOLVER AL INICIO
@@ -46,19 +46,19 @@ export const GameModals: React.FC<GameModalsProps> = ({
             ¿Volver al inicio?
           </h2>
           <div style={{ display: "flex", gap: "1rem", justifyContent: "center", width: "100%", alignItems: "stretch" }}>
-            <Button 
-              variant="white" 
+            <Button
+              variant="white"
               className="btn-hover-dark"
-              onClick={onConfirmExit} 
+              onClick={onConfirmExit}
               style={{ flex: 1, fontSize: "1.2rem", padding: "0.6rem", lineHeight: 0.8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
             >
               <span style={{ marginBottom: "-2px" }}>VOLVER</span>
               <span>AL INICIO</span>
             </Button>
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               className="btn-hover-dark"
-              onClick={onContinue} 
+              onClick={onContinue}
               style={{ flex: 1, fontSize: "1.2rem", padding: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
               SEGUIR JUGANDO
@@ -67,7 +67,7 @@ export const GameModals: React.FC<GameModalsProps> = ({
         </div>
       </Modal>
 
-      <Modal open={abandonmentModal} onClose={() => {}} showClose={false}>
+      <Modal open={abandonmentModal} onClose={() => { }} showClose={false}>
         <div style={{ textAlign: "center", padding: "1.5rem 0 0 0" }}>
           <h2 className="text-display" style={{ fontSize: "2rem", color: "var(--color-secondary)", marginBottom: 16 }}>
             ¡PARTIDA ABANDONADA!

@@ -5,7 +5,7 @@ import type { PlayerRole } from "../../lib/truco/types";
 export const useTrucoHandlers = (state: any, logic: any) => {
   const {
     setPlayerHand, setPlayedCards, setTrucoState, setEnvidoState, setPendingAction, setSuspendedTruco, setIsRoundEnding, setIsCooldown, setActiveCall,
-    isRoundEnding, isCooldown, pendingAction, trucoState, envidoState, suspendedTruco, gameMode
+    isRoundEnding, isCooldown, pendingAction, trucoState, envidoState, suspendedTruco, gameMode, isHost
   } = state;
   const { triggerCall, addPoints, resetRound, resolveEnvido } = logic;
 
@@ -17,10 +17,10 @@ export const useTrucoHandlers = (state: any, logic: any) => {
       : (trucoState.level + 1 + (envidoState.status === "none" || envidoState.status === "pending" ? 1 : 0));
     addPoints(win, pts);
     setIsRoundEnding(true);
-    if (gameMode !== "multiplayer") {
+    if (gameMode !== "multiplayer" || isHost) {
       setTimeout(() => resetRound(), 3500);
     }
-  }, [trucoState.level, envidoState.status, triggerCall, addPoints, setIsRoundEnding, resetRound]);
+  }, [trucoState.level, envidoState.status, triggerCall, addPoints, setIsRoundEnding, resetRound, isHost, gameMode]);
 
   const playCard = useCallback((card: Card) => {
     if (isRoundEnding || isCooldown || pendingAction) return null;

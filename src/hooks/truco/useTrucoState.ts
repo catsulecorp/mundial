@@ -9,6 +9,8 @@ export const useTrucoState = () => {
   const [rivalId, setRivalId] = useState<string | null>(null);
   const [rivalName, setRivalName] = useState("CPU");
   const [maxPoints, setMaxPoints] = useState(30);
+  const [isHost, setIsHost] = useState(false);
+  const [myIndex, setMyIndex] = useState(0);
 
   const [trucoState, setTrucoState] = useState<TrucoState>({ level: 0, caller: null, status: "none" });
   const [envidoState, setEnvidoState] = useState<EnvidoState>({ level: 0, caller: null, status: "none" });
@@ -53,6 +55,8 @@ export const useTrucoState = () => {
     rivalId, setRivalId,
     rivalName, setRivalName,
     maxPoints, setMaxPoints,
+    isHost, setIsHost,
+    myIndex, setMyIndex,
     trucoState, setTrucoState,
     envidoState, setEnvidoState,
     pendingAction, setPendingAction,

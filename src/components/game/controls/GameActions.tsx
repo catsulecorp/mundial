@@ -36,11 +36,33 @@ export const GameActions: React.FC<GameActionsProps> = ({
   handleMazo
 }) => {
   const [showEnvidoOptions, setShowEnvidoOptions] = useState(false);
+  const [confirmEnvido, setConfirmEnvido] = useState(false);
+  const confirmTimeoutRef = React.useRef<any>(null);
+
+  const onEnvidoClick = () => {
+    if (confirmEnvido) {
+      handleCall("envido", 1, "player");
+      setConfirmEnvido(false);
+      setShowEnvidoOptions(false);
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    } else {
+      setConfirmEnvido(true);
+      setShowEnvidoOptions(true);
+      
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+      confirmTimeoutRef.current = setTimeout(() => {
+        setConfirmEnvido(false);
+        setShowEnvidoOptions(false);
+      }, 2000);
+    }
+  };
+
   const isHeroTeamTurn = whoseTurn === "player" || whoseTurn === "partner";
 
   // Reset hover state when round ends or envido status changes
   React.useEffect(() => {
     setShowEnvidoOptions(false);
+    setConfirmEnvido(false);
   }, [isRoundEnding, envidoState.status]);
 
   return (
@@ -79,13 +101,19 @@ export const GameActions: React.FC<GameActionsProps> = ({
                 onMouseEnter={() => {
                   if (window.innerWidth > 768) setShowEnvidoOptions(true);
                 }}
-                onMouseLeave={() => setShowEnvidoOptions(false)}
+                onMouseLeave={() => {
+                  if (!confirmEnvido) setShowEnvidoOptions(false);
+                }}
               >
                 <AnimatePresence>
                   {showEnvidoOptions && !isRoundEnding && isHeroTeamTurn && (
                     <EnvidoSubMenu 
                       disabled={!isHeroTeamTurn || isBusy || pendingAction !== null}
-                      onCall={(level) => handleCall("envido", level, "player")}
+                      onCall={(level) => {
+                        handleCall("envido", level, "player");
+                        setConfirmEnvido(false);
+                        setShowEnvidoOptions(false);
+                      }}
                     />
                   )}
                 </AnimatePresence>
@@ -93,7 +121,7 @@ export const GameActions: React.FC<GameActionsProps> = ({
                 <Button
                   variant="primary"
                   disabled={!isHeroTeamTurn || isBusy || pendingAction !== null}
-                  onClick={() => handleCall("envido", 1, "player")}
+                  onClick={onEnvidoClick}
                 >
                   ¡ENVIDO!
                 </Button>

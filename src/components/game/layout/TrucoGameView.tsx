@@ -54,7 +54,7 @@ export const TrucoGameView: React.FC<TrucoGameViewProps> = ({
   onExitRequest, onRestartGame, onPlayCard, onHandleCall, onHandleResponse, onHandleMazo,
   onCloseExit, onConfirmExit
 }) => {
-  console.log("TrucoGameView rendering with rivalName:", rivalName);
+  // console.log("TrucoGameView rendering with rivalName:", rivalName);
 
   return (
     <motion.div
@@ -149,7 +149,7 @@ export const TrucoGameView: React.FC<TrucoGameViewProps> = ({
                 letterSpacing: "0.2em",
               }}
             >
-              {showCountdown ? "• • •" : (whoseTurn === "player" ? "TU TURNO" : "ESPERANDO RIVAL...")}
+              {showCountdown ? "• • •" : (whoseTurn === "player" ? "TU TURNO" : `ESPERANDO A ${rivalName.toUpperCase()}...`)}
             </motion.div>
           </div>
         )}

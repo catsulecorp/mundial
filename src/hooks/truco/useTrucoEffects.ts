@@ -3,7 +3,7 @@ import { determineWinner } from "../../lib/truco/engine";
 
 export const useTrucoEffects = (state: any, logic: any) => {
   const {
-    playedCards, gameMode, isRoundEnding, isCooldown, trucoState, starterIdx,
+    playedCards, gameMode, isRoundEnding, isCooldown, trucoState, starterIdx, isHost,
     setIsCooldown, setIsRoundEnding, setHandWinners, setHandWinningCardIds, setRoundWinningCardId, setShowCountdown,
     lastProcessedHandRef, handWinners, score, maxPoints, setWinnerModal, setGameState
   } = state;
@@ -77,18 +77,11 @@ export const useTrucoEffects = (state: any, logic: any) => {
           clearRoundData();
           if (winningCard) setRoundWinningCardId(winningCard.id);
           
-          if (gameMode !== "multiplayer") {
+          if (gameMode !== "multiplayer" || isHost) {
             const points = trucoState.level + 1;
             addPoints(roundWinner, points);
-            
-            // Synchronize reset and unlock with "VAMO' A JUGÁ!" (3s)
-            setTimeout(() => {
-              resetRound();
-              setIsRoundEnding(false);
-              setIsCooldown(false);
-            }, 3000);
           }
-          
+
           // Clear visual countdown message shortly after (4s)
           setTimeout(() => {
             setShowCountdown(false);
@@ -98,5 +91,17 @@ export const useTrucoEffects = (state: any, logic: any) => {
         }
       }, 1000);
     }
-  }, [playedCards.length, gameMode, isRoundEnding, isCooldown, trucoState.level, starterIdx, addPoints, resetRound, clearRoundData, setIsCooldown, setIsRoundEnding, setHandWinners, setHandWinningCardIds, setRoundWinningCardId, setShowCountdown, lastProcessedHandRef, handWinners]);
+  }, [playedCards.length, gameMode, isRoundEnding, isCooldown, trucoState.level, starterIdx, isHost, addPoints, clearRoundData, setIsCooldown, setIsRoundEnding, setHandWinners, setHandWinningCardIds, setRoundWinningCardId, setShowCountdown, lastProcessedHandRef, handWinners]);
+
+  // Dedicated Round Reset Effect (Crucial for Multiplayer stability)
+  useEffect(() => {
+    if (isRoundEnding && (gameMode !== "multiplayer" || isHost)) {
+      const timer = setTimeout(() => {
+        resetRound();
+        setIsRoundEnding(false);
+        setIsCooldown(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isRoundEnding, isHost, gameMode, resetRound, setIsRoundEnding, setIsCooldown]);
 };

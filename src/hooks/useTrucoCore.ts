@@ -20,7 +20,7 @@ export const useTrucoCore = (_sessionId: string | null) => {
   } = state;
 
   const whoseTurn = useTrucoTurn(
-    gameState, gameMode, playedCards, starterIdx, handWinners, isRoundEnding, isCooldown, pendingAction
+    gameState, gameMode, playedCards, starterIdx, handWinners, isRoundEnding, isCooldown, pendingAction, state.myIndex
   );
 
   // Initialize Effects
@@ -29,14 +29,7 @@ export const useTrucoCore = (_sessionId: string | null) => {
   // Debug Busy State & Turn
   useEffect(() => {
     if (gameState === "playing") {
-      const busy = isRoundEnding || isCooldown || pendingAction !== null || state.isGameStarting;
-      const turnName = whoseTurn === "cpu" ? (gameMode === "multiplayer" ? "RIVAL" : "CPU") : "YOU";
-      console.log(`[TURN] It is ${turnName}'s turn. Game Busy: ${busy}`, {
-        isRoundEnding,
-        isCooldown,
-        pendingAction: !!pendingAction,
-        isGameStarting: state.isGameStarting
-      });
+      // Logic silenced
     }
   }, [isRoundEnding, isCooldown, pendingAction, gameState, whoseTurn, gameMode, state.isGameStarting]);
 

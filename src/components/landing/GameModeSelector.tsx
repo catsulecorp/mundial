@@ -37,14 +37,14 @@ export const GameModeSelector: React.FC<GameModeSelectorProps> = ({ selectedMode
       <Button
         onClick={() => onSelect("multiplayer")}
         className="btn-hover-dark"
-        style={{ 
+        style={{
           ...getButtonStyle("multiplayer", "#00f2ff"),
-          width: "100%", 
+          width: "100%",
           gap: "0.75rem",
         }}
       >
         <Globe size={22} />
-        JUGAR ONLINE (EN CONSTRUCCIÓN)
+        JUGAR ONLINE (1 VS 1)
       </Button>
 
       {/* Secondary Options: Local Modes */}
@@ -52,9 +52,9 @@ export const GameModeSelector: React.FC<GameModeSelectorProps> = ({ selectedMode
         <Button
           onClick={() => onSelect("1v1")}
           className="btn-hover-dark"
-          style={{ 
+          style={{
             ...getButtonStyle("1v1", "#ffdf00"),
-            width: "100%", 
+            width: "100%",
             gap: "0.5rem",
           }}
         >
@@ -64,9 +64,9 @@ export const GameModeSelector: React.FC<GameModeSelectorProps> = ({ selectedMode
         <Button
           onClick={() => onSelect("2v2")}
           disabled={true}
-          style={{ 
+          style={{
             ...getButtonStyle("2v2", "#ffdf00"),
-            width: "100%", 
+            width: "100%",
             gap: "0.5rem",
             opacity: 0.5,
             filter: "grayscale(1)",

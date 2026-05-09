@@ -31,12 +31,19 @@ function App() {
     playerHand: core.playerHand, playedCards: core.playedCards, starterIdx: core.starterIdx,
     cpuHandRef: core.cpuHandRef, isRoundEnding: core.isRoundEnding, isGameStarting: core.isGameStarting,
     setGameState: core.setGameState, setRivalName: core.setRivalName, resetRound: core.resetRound,
-    playCardRemote: core.playCardRemote, wrappedHandleCall: (t, l, c, r) => wrappedHandleCall(t, l, c, r),
-    wrappedHandleResponse: (w, r) => wrappedHandleResponse(w, r),
+    playCardRemote: core.playCardRemote, 
+    wrappedHandleCall: (t: any, l: number, c: PlayerRole, r: boolean) => wrappedHandleCall(t, l, c, r),
+    wrappedHandleResponse: (w: boolean, r: boolean) => wrappedHandleResponse(w, r),
     handleMazo: core.handleMazo, setScore: core.setScore, score: core.score,
     setIsGameStarting: core.setIsGameStarting, setShowCountdown: core.setShowCountdown,
-    setMaxPoints: core.setMaxPoints
+    setMaxPoints: core.setMaxPoints,
+    setIsHost: core.setIsHost, setMyIndex: core.setMyIndex
   });
+
+  useEffect(() => {
+    core.setIsHost(actualIsHost);
+    core.setMyIndex(actualIsHost ? 0 : 1);
+  }, [actualIsHost, core.setIsHost, core.setMyIndex]);
 
   useEffect(() => {
     syncRef.current = (data: any) => {
@@ -96,8 +103,14 @@ function App() {
     setCurrentRoomCode(roomCode || null);
     
     if (mode === "multiplayer") {
-      if (isHostForThisMatch) {
-        console.log("SOY EL HOST (Argentina). Generando partida...");
+      const actualIsHost = isHostForThisMatch;
+      core.setIsHost(actualIsHost);
+      core.setMyIndex(actualIsHost ? 0 : 1);
+
+      if (actualIsHost) {
+        core.setGameMode(mode);
+        core.setRivalId(rId || "");
+        core.setRivalName(rName || "RIVAL");
         const syncData = core.startGame(mode, rName || "RIVAL", rId || "", points);
         if (syncData) {
         setTimeout(() => {
@@ -112,9 +125,14 @@ function App() {
             senderName: user?.user_metadata?.full_name?.split(' ')[0] || "HOST"
           }, roomCode);
         }, 1000);
+        core.setIsGameStarting(true);
+        core.setShowCountdown(true);
+        setTimeout(() => {
+          core.setIsGameStarting(false);
+          core.setShowCountdown(false);
+        }, 2500);
         }
       } else {
-        console.log("SOY EL INVITADO (Francia). Pasando al tablero, esperando sync del Host...");
         // Guest MUST set "playing" to see the board, but doesn't startGame()
         core.setGameMode(mode);
         core.setRivalId(rId || "");
@@ -123,6 +141,10 @@ function App() {
         core.setGameState("playing"); 
         core.setIsGameStarting(true);
         core.setShowCountdown(true);
+        setTimeout(() => {
+          core.setIsGameStarting(false);
+          core.setShowCountdown(false);
+        }, 2500);
       }
     } else {
       // Local modes
