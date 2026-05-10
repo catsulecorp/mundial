@@ -1,7 +1,8 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import type { PlayerRole, GameMode, EnvidoState, PlayedCard } from '../../../lib/truco/types';
+import { EnvidoSubMenu } from './EnvidoSubMenu';
 
 interface PendingChallengeProps {
   pendingAction: any;
@@ -20,11 +21,67 @@ export const PendingChallenge: React.FC<PendingChallengeProps> = ({
   handleResponse,
   handleCall
 }) => {
+  const [showEnvidoOptions, setShowEnvidoOptions] = useState(false);
+  const [showRealEnvidoOptions, setShowRealEnvidoOptions] = useState(false);
+  const [confirmEnvido, setConfirmEnvido] = useState(false);
+  const confirmTimeoutRef = useRef<any>(null);
+
+  const onEnvidoClick = () => {
+    if (window.innerWidth > 768) {
+      handleCall("envido", 2, "player");
+      return;
+    }
+
+    if (confirmEnvido) {
+      handleCall("envido", 2, "player");
+      setConfirmEnvido(false);
+      setShowEnvidoOptions(false);
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    } else {
+      setConfirmEnvido(true);
+      setShowEnvidoOptions(true);
+      setShowRealEnvidoOptions(false);
+
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+      confirmTimeoutRef.current = setTimeout(() => {
+        setConfirmEnvido(false);
+        setShowEnvidoOptions(false);
+      }, 2000);
+    }
+  };
+
+  const onRealEnvidoClick = () => {
+    if (window.innerWidth > 768) {
+      handleCall("envido", 3, "player");
+      return;
+    }
+
+    if (confirmEnvido) {
+      handleCall("envido", 3, "player");
+      setConfirmEnvido(false);
+      setShowRealEnvidoOptions(false);
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    } else {
+      setConfirmEnvido(true);
+      setShowRealEnvidoOptions(true);
+      setShowEnvidoOptions(false);
+
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+      confirmTimeoutRef.current = setTimeout(() => {
+        setConfirmEnvido(false);
+        setShowRealEnvidoOptions(false);
+      }, 2000);
+    }
+  };
+
   // Check if "El envido está primero" rule applies:
-  const canCallEnvidoFirst = 
-    pendingAction.type === "truco" && 
-    envidoState.status === "none" && 
+  const canCallEnvidoFirst =
+    pendingAction.type === "truco" &&
+    envidoState.status === "none" &&
     playedCards.filter(c => c.owner === "player").length === 0;
+
+  const btnHeight = "44px";
+  const isHighStakesEnvido = pendingAction.type === "envido" && pendingAction.level >= 3;
 
   return (
     <motion.div
@@ -45,15 +102,16 @@ export const PendingChallenge: React.FC<PendingChallengeProps> = ({
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          style={{ width: "100%" }}
         >
           <Button
             variant="primary"
-            style={{ 
-              fontWeight: 900, 
-              border: "none", 
-              width: "100%", 
-              height: "60px",
-              fontSize: "1.1rem",
+            style={{
+              fontWeight: 900,
+              border: "none",
+              width: "100%",
+              height: btnHeight,
+              fontSize: "1rem",
               background: "#00f2ff", // Celeste para que resalte
               color: "#000"
             }}
@@ -68,43 +126,113 @@ export const PendingChallenge: React.FC<PendingChallengeProps> = ({
       <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", width: "100%", maxWidth: "600px", alignItems: "center" }}>
         <Button
           variant={pendingAction.type === "envido" ? "primary" : "secondary"}
-          style={{ fontWeight: 800, border: "none", flex: 1, minWidth: "110px", height: "60px", whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "1rem" }}
+          style={{ fontWeight: 800, border: "none", flex: 1, minWidth: "110px", height: btnHeight, whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "0.9rem" }}
           onClick={() => handleResponse(true)}
         >
-          {gameMode === "2v2" ? "¡QUEREMOS!" : "¡QUIERO!"}
+          {isHighStakesEnvido
+            ? (gameMode === "2v2" ? "¡QUEREMOS!" : "¡QUIERO!")
+            : (gameMode === "2v2" ? "QUEREMOS" : "QUIERO")
+          }
         </Button>
 
         <Button
           variant="white"
-          style={{ border: "none", flex: 1, minWidth: "110px", height: "60px", whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "1rem" }}
+          style={{ border: "none", flex: 1, minWidth: "110px", height: btnHeight, whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "0.9rem" }}
           onClick={() => handleResponse(false)}
         >
-          {gameMode === "2v2" ? "¡NO QUEREMOS!" : "¡NO QUIERO!"}
+          {isHighStakesEnvido
+            ? (gameMode === "2v2" ? "NO QUEREMOS..." : "NO QUIERO...")
+            : (gameMode === "2v2" ? "NO QUEREMOS" : "NO QUIERO")
+          }
         </Button>
 
         {/* Escalations (Truco or Envido) */}
         {pendingAction.type === "envido" && pendingAction.level === 1 && (
-          <Button
-            variant="primary"
-            style={{ fontWeight: 800, border: "none", flex: 1, minWidth: "110px", height: "60px", whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "1rem" }}
-            onClick={() => handleCall("envido", 2, "player")}
+          <div
+            style={{ position: 'relative', flex: 1, minWidth: "130px" }}
+            onMouseEnter={() => {
+              if (window.innerWidth > 768) setShowEnvidoOptions(true);
+            }}
+            onMouseLeave={() => {
+              if (!confirmEnvido) setShowEnvidoOptions(false);
+            }}
           >
-            ¡ENVIDO! (x2)
-          </Button>
+            <AnimatePresence>
+              {showEnvidoOptions && (
+                <EnvidoSubMenu
+                  onCall={(level) => {
+                    handleCall("envido", level, "player");
+                    setConfirmEnvido(false);
+                    setShowEnvidoOptions(false);
+                  }}
+                />
+              )}
+            </AnimatePresence>
+            <Button
+              variant="primary"
+              style={{ fontWeight: 800, border: "none", width: "100%", height: btnHeight, whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "0.9rem" }}
+              onClick={onEnvidoClick}
+            >
+              ¡ENVIDO! (x2)
+            </Button>
+          </div>
         )}
         {pendingAction.type === "envido" && pendingAction.level === 2 && (
-          <Button
-            variant="secondary"
-            style={{ border: "none", flex: 1, minWidth: "110px", height: "60px", whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "1rem" }}
-            onClick={() => handleCall("envido", 3, "player")}
+          <div
+            style={{ position: 'relative', flex: 1, minWidth: "140px" }}
+            onMouseEnter={() => {
+              if (window.innerWidth > 768) setShowRealEnvidoOptions(true);
+            }}
+            onMouseLeave={() => {
+              if (!confirmEnvido) setShowRealEnvidoOptions(false);
+            }}
           >
-            ¡REAL ENVIDO!
-          </Button>
+            <AnimatePresence>
+              {showRealEnvidoOptions && (
+                <EnvidoSubMenu
+                  hideRealEnvido={true}
+                  onCall={(level) => {
+                    handleCall("envido", level, "player");
+                    setConfirmEnvido(false);
+                    setShowRealEnvidoOptions(false);
+                  }}
+                />
+              )}
+            </AnimatePresence>
+            <Button
+              variant="primary"
+              style={{
+                fontWeight: 800,
+                border: "none",
+                width: "100%",
+                height: btnHeight,
+                whiteSpace: "nowrap",
+                padding: "0 1.25rem",
+                fontSize: "0.9rem",
+                background: "#00f2ff",
+                color: "#000"
+              }}
+              onClick={onRealEnvidoClick}
+            >
+              ¡REAL ENVIDO!
+            </Button>
+          </div>
         )}
         {pendingAction.type === "envido" && pendingAction.level === 3 && (
           <Button
-            variant="secondary"
-            style={{ border: "none", flex: 1, minWidth: "110px", height: "60px", whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "1rem" }}
+            variant="primary"
+            style={{
+              fontWeight: 800,
+              border: "none",
+              flex: 1,
+              minWidth: "140px",
+              height: btnHeight,
+              whiteSpace: "nowrap",
+              padding: "0 1.25rem",
+              fontSize: "0.9rem",
+              background: "#00f2ff",
+              color: "#000"
+            }}
             onClick={() => handleCall("envido", 4, "player")}
           >
             ¡FALTA ENVIDO!
@@ -113,7 +241,7 @@ export const PendingChallenge: React.FC<PendingChallengeProps> = ({
         {pendingAction.type === "truco" && pendingAction.level < 3 && (
           <Button
             variant="secondary"
-            style={{ border: "none", flex: 1, minWidth: "110px", height: "60px", whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "1rem" }}
+            style={{ border: "none", flex: 1, minWidth: "110px", height: btnHeight, whiteSpace: "nowrap", padding: "0 1.25rem", fontSize: "0.9rem" }}
             onClick={() => handleCall("truco", pendingAction.level + 1, "player")}
           >
             {pendingAction.level === 1 ? "¡RE-TRUCO!" : "¡VALE 4!"}

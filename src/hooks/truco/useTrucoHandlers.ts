@@ -12,8 +12,8 @@ export const useTrucoHandlers = (state: any, logic: any) => {
   const handleMazo = useCallback((remote: boolean = false) => {
     const win = remote ? "player" : "cpu";
     triggerCall(remote ? "ME VOY AL MAZO" : "ME VOY AL MAZO", remote ? "var(--color-secondary)" : "var(--color-accent)");
-    const pts = trucoState.status === "accepted" 
-      ? (trucoState.level + 1) 
+    const pts = trucoState.status === "accepted"
+      ? (trucoState.level + 1)
       : (trucoState.level + 1 + (envidoState.status === "none" || envidoState.status === "pending" ? 1 : 0));
     addPoints(win, pts);
     setIsRoundEnding(true);
@@ -48,7 +48,19 @@ export const useTrucoHandlers = (state: any, logic: any) => {
       if (pendingAction && pendingAction.type === "truco") {
         setSuspendedTruco(pendingAction);
       }
-      setEnvidoState((prev: any) => ({ status: "pending", level, caller, prevLevel: prev.level }));
+      
+      setEnvidoState((prev: any) => {
+        const levelPoints: Record<number, number> = { 1: 2, 2: 2, 3: 3, 4: 0 };
+        const callValue = levelPoints[level] || 0;
+        return { 
+          status: "pending", 
+          level, 
+          caller, 
+          prevLevel: prev.level,
+          prevAccumulated: prev.accumulated || 0, // Guardamos lo que ya estaba querido
+          accumulated: (prev.accumulated || 0) + callValue
+        };
+      });
       setPendingAction({ type, level, caller });
     }
   }, [triggerCall, pendingAction, setTrucoState, setPendingAction, setSuspendedTruco, setEnvidoState]);
@@ -56,7 +68,7 @@ export const useTrucoHandlers = (state: any, logic: any) => {
   const handleResponse = useCallback((accept: boolean, remote: boolean = false) => {
     if (!pendingAction) return 0;
     const resp = remote ? "cpu" : "player";
-    triggerCall(accept ? "¡QUIERO!" : "¡NO QUIERO!", remote ? "var(--color-secondary)" : "var(--color-accent)");
+    triggerCall(accept ? "¡QUIERO!" : "NO QUIERO", remote ? "var(--color-secondary)" : "var(--color-accent)");
 
     if (accept) {
       if (pendingAction.type === "truco") {
@@ -68,12 +80,8 @@ export const useTrucoHandlers = (state: any, logic: any) => {
     } else {
       let pts = 1;
       if (pendingAction.type === "envido") {
-        if (pendingAction.level === 4) {
-          const prev = envidoState.prevLevel || 0;
-          pts = prev > 0 ? (prev === 3 ? 3 : (prev === 2 ? 4 : 2)) : 1;
-        } else {
-          pts = pendingAction.level >= 2 ? 2 : 1;
-        }
+        // En el rechazo, cobramos lo que ya estaba acumulado antes de esta apuesta
+        pts = Math.max(1, envidoState.prevAccumulated || 0);
       } else {
         pts = pendingAction.level === 1 ? 1 : pendingAction.level - 1;
       }
@@ -105,7 +113,7 @@ export const useTrucoHandlers = (state: any, logic: any) => {
 
     setPendingAction(null);
     return 0;
-  }, [pendingAction, envidoState.prevLevel, suspendedTruco, triggerCall, setTrucoState, setEnvidoState, resolveEnvido, addPoints, setIsRoundEnding, resetRound, setPendingAction, setSuspendedTruco, setIsCooldown, setActiveCall]);
+  }, [pendingAction, envidoState.prevAccumulated, suspendedTruco, triggerCall, setTrucoState, setEnvidoState, resolveEnvido, addPoints, setIsRoundEnding, resetRound, setPendingAction, setSuspendedTruco, setIsCooldown, setActiveCall]);
 
   return {
     handleMazo, playCard, handleCall, handleResponse

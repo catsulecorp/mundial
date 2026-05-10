@@ -40,6 +40,11 @@ export const GameActions: React.FC<GameActionsProps> = ({
   const confirmTimeoutRef = React.useRef<any>(null);
 
   const onEnvidoClick = () => {
+    if (window.innerWidth > 768) {
+      handleCall("envido", 1, "player");
+      return;
+    }
+
     if (confirmEnvido) {
       handleCall("envido", 1, "player");
       setConfirmEnvido(false);

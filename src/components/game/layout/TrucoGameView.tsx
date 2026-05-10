@@ -74,7 +74,7 @@ export const TrucoGameView: React.FC<TrucoGameViewProps> = ({
         overflowY: "auto",
         overflowX: "hidden",
         position: "relative",
-        padding: "1rem"
+        padding: "0.5rem"
       }}
     >
       <GameTopBar onExit={onExitRequest} />
@@ -119,10 +119,10 @@ export const TrucoGameView: React.FC<TrucoGameViewProps> = ({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "flex-start",
-        gap: "0.5rem",
+        gap: "0.25rem",
         width: "100%",
         maxWidth: gameMode === "2v2" ? "1200px" : "860px",
-        marginTop: "4.5rem"
+        marginTop: "2.5rem"
       }}>
         <CPUHands
           gameMode={gameMode}

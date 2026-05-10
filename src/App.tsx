@@ -6,6 +6,7 @@ import { useTrucoGame } from "./hooks/useTrucoGame";
 import { useMatchmaking } from "./hooks/useMatchmaking";
 import { AnimatePresence } from "framer-motion";
 import type { GameMode, PlayerRole } from "./lib/truco/types";
+import { ScrollIndicator } from "./components/ui/ScrollIndicator";
 
 function App() {
   const [user, setUser] = useState<any>(null);
@@ -163,6 +164,7 @@ function App() {
 
   return (
     <main style={{ minHeight: "100vh" }}>
+      <ScrollIndicator />
       <AnimatePresence mode="wait">
         {core.gameState === "landing" ? (
           <LandingPage key="landing" sessionId={sessionId} onStart={startGameWithSync} />

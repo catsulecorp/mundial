@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Card } from '../data/cards';
-import type { GameMode, PlayedCard, PendingAction, PlayerRole } from '../lib/truco/types';
+import { calculateEnvido } from '../lib/truco/engine';
+import type { GameMode, PlayerRole, PendingAction, PlayedCard } from '../lib/truco/types';
 
 interface UseTrucoCPUProps {
   gameState: string;
@@ -95,11 +96,36 @@ export const useTrucoCPU = ({
           return; // STOP HERE. Don't play a card if we called truco.
         }
 
-        // 2. CPU Calls Envido (only if nothing played and no truco pending)
-        if (dice < 0.18 && envidoState.status === "none" && playedCards.length === 0) {
-          handleCall("envido", 1, whoseTurn as PlayerRole);
-          setIsCpuThinking(false);
-          return; // STOP HERE.
+        // 2. CPU Calls Envido (only if CPU hasn't played a card yet and no truco pending)
+        let cpuPlayedCount = 0;
+        if (whoseTurn === "cpu") {
+          cpuPlayedCount = 3 - cpuHandRef.current.length;
+        } else if (whoseTurn === "partner") {
+          cpuPlayedCount = 3 - cpuPartnerHandRef.current.length;
+        } else if (whoseTurn === "cpu2") {
+          cpuPlayedCount = 3 - cpuOpponent2HandRef.current.length;
+        }
+
+        if (envidoState.status === "none" && cpuPlayedCount === 0) {
+          // Calculate actual points to decide
+          let currentHand: Card[] = [];
+          if (whoseTurn === "cpu") currentHand = cpuHandRef.current;
+          else if (whoseTurn === "partner") currentHand = cpuPartnerHandRef.current;
+          else if (whoseTurn === "cpu2") currentHand = cpuOpponent2HandRef.current;
+
+          const points = calculateEnvido(currentHand);
+          
+          // Decision Logic:
+          // - If points > 28: 80% chance
+          // - If points > 25: 50% chance
+          // - Bluff: 15% chance regardless of points
+          const shouldCall = (points > 28 && dice < 0.8) || (points > 25 && dice < 0.5) || (dice < 0.15);
+
+          if (shouldCall) {
+            handleCall("envido", 1, whoseTurn as PlayerRole);
+            setIsCpuThinking(false);
+            return;
+          }
         }
 
         // 3. Play a card (only if we didn't call anything above)

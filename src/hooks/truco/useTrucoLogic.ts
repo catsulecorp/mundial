@@ -110,7 +110,7 @@ export const useTrucoLogic = (state: any) => {
           const target = (state.maxPoints === 30 && leaderScore < 15) ? 15 : state.maxPoints;
           pts = Math.max(1, target - leaderScore);
         } else {
-          pts = state.envidoState.level === 3 ? 3 : (state.envidoState.level === 2 ? 4 : 2);
+          pts = state.envidoState.accumulated || 2;
         }
         
         const pWins = pPoints > cPoints || (pPoints === cPoints && isPlayerMano);
